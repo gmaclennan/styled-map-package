@@ -87,6 +87,16 @@
         "default": "./dist/from-mbtiles.cjs"
       }
     },
+    "./validator": {
+      "import": {
+        "types": "./dist/validator.d.ts",
+        "default": "./dist/validator.js"
+      },
+      "require": {
+        "types": "./dist/validator.d.cts",
+        "default": "./dist/validator.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "bin": {
@@ -99,7 +109,9 @@
     "map-viewer"
   ],
   "scripts": {
-    "test": "npm run lint && npm run build && npm run types && node --test",
+    "test": "npm run lint && npm run build && npm run types && vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepare": "husky && patch-package",
     "lint": "eslint .",
     "types": "tsc",
@@ -152,7 +164,7 @@
     "@types/node": "^18.19.130",
     "@types/readable-stream": "^4.0.18",
     "@types/yauzl-promise": "^4.0.1",
-    "ava": "^6.2.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "esbuild-fix-imports-plugin": "^1.0.20",
     "eslint": "^9.25.1",
     "execa": "^9.4.0",
@@ -169,7 +181,8 @@
     "tempy": "^3.1.0",
     "tsup": "^8.4.0",
     "type-fest": "^4.35.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
   },
   "bundleDependencies": [
     "yauzl-promise"
