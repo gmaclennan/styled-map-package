@@ -22,6 +22,7 @@ const enc = new TextEncoder()
  */
 async function createZipBuffer(entries) {
   const zw = new ZipWriter()
+  // @ts-ignore - ZipWriter readable is node:stream/web.ReadableStream, incompatible with global ReadableStream type
   const outputPromise = buffer(Readable.fromWeb(zw.readable))
   for (const { name, data } of entries) {
     const bytes = typeof data === 'string' ? enc.encode(data) : data
@@ -84,6 +85,7 @@ test('Reader.getVersion() returns version from SMP created by Writer', async () 
     layers: [{ id: 'bg', type: 'background' }],
   }
   const writer = new Writer(style)
+  const smpBufPromise = streamToBuffer(writer.outputStream)
   await writer.addTile(randomStream({ size: 1024 }), {
     x: 0,
     y: 0,
@@ -92,7 +94,7 @@ test('Reader.getVersion() returns version from SMP created by Writer', async () 
     format: 'mvt',
   })
   writer.finish()
-  const smpBuf = await streamToBuffer(writer.outputStream)
+  const smpBuf = await smpBufPromise
   const zip = await ZipReader.from(new BufferSource(smpBuf))
   const reader = new Reader(zip)
   const version = await reader.getVersion()

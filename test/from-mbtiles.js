@@ -4,8 +4,8 @@ import { onTestFinished, test } from 'vitest'
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { Writable } from 'node:stream'
 import { buffer } from 'node:stream/consumers'
-import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 
 import { fromMBTiles } from '../lib/from-mbtiles.js'
@@ -25,7 +25,7 @@ test('convert from MBTiles', async () => {
 
   await Promise.all([
     fromMBTiles(fixture, output1),
-    pipeline(fromMBTiles(fixture), fs.createWriteStream(output2)),
+    fromMBTiles(fixture).pipeTo(Writable.toWeb(fs.createWriteStream(output2))),
   ])
 
   for (const output of [output1, output2]) {

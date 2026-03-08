@@ -56,6 +56,8 @@ test('Minimal write & read', async () => {
   )
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  // Start consuming the output stream before adding tiles so backpressure is respected
+  const smpPromise = streamToBuffer(writer.outputStream)
   const sm = new SphericalMercator()
 
   const bounds = /** @type {BBox} */ ([-40.6, -50.6, 151.6, 76.0])
@@ -79,7 +81,7 @@ test('Minimal write & read', async () => {
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
@@ -115,10 +117,11 @@ test('Inline GeoJSON is not removed from style', async () => {
   )
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
@@ -164,10 +167,11 @@ test('Un-added source is stripped from output', async () => {
     'input style contains layers with maplibre source',
   )
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
@@ -194,6 +198,7 @@ test('Glyphs can be written and read', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(typeof styleIn.glyphs === 'string', 'input style has glyphs URL')
   const font = 'Open Sans Semibold'
@@ -218,7 +223,7 @@ test('Glyphs can be written and read', async () => {
   }
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
@@ -243,6 +248,7 @@ test('Missing glyphs throws an error', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(typeof styleIn.glyphs === 'string', 'input style has glyphs URL')
 
@@ -258,6 +264,8 @@ test('Missing glyphs throws an error', async () => {
   await assert.rejects(async () => writer.finish(), {
     message: /Missing fonts/,
   })
+  writer.abort(new Error('cleanup'))
+  await smpPromise.catch(() => {})
 })
 
 test('Finishing writer with no sources throws and error', async () => {
@@ -267,10 +275,13 @@ test('Finishing writer with no sources throws and error', async () => {
   )
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   await assert.rejects(async () => writer.finish(), {
     message: /Missing sources/,
   })
+  writer.abort(new Error('cleanup'))
+  await smpPromise.catch(() => {})
 })
 
 test('External GeoJSON & layers that use it are excluded if not added', async () => {
@@ -281,6 +292,7 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(
     'crimea' in styleIn.sources && styleIn.sources.crimea.type === 'geojson',
@@ -307,7 +319,7 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
@@ -331,6 +343,7 @@ test('Missing sprites throws an error', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
 
@@ -346,6 +359,8 @@ test('Missing sprites throws an error', async () => {
   await assert.rejects(async () => writer.finish(), {
     message: /Missing sprite/,
   })
+  writer.abort(new Error('cleanup'))
+  await smpPromise.catch(() => {})
 })
 
 test('Can write and read sprites', async () => {
@@ -356,6 +371,7 @@ test('Can write and read sprites', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
 
@@ -397,7 +413,7 @@ test('Can write and read sprites', async () => {
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
@@ -437,6 +453,7 @@ test('Can write and read style with multiple sprites', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   assert(Array.isArray(styleIn.sprite), 'input style has array of sprites')
 
@@ -488,7 +505,7 @@ test('Can write and read style with multiple sprites', async () => {
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
@@ -540,6 +557,7 @@ test('Raster tiles write and read', async () => {
   )
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   const pngStream = randomImageStream({
     width: 256,
@@ -560,7 +578,7 @@ test('Raster tiles write and read', async () => {
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
@@ -583,6 +601,7 @@ test('Optimized central directory order', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
   const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
 
   const bounds = /** @type {BBox} */ ([-40.6, -50.6, 151.6, 76.0])
 
@@ -623,7 +642,7 @@ test('Optimized central directory order', async () => {
 
   writer.finish()
 
-  const smp = await streamToBuffer(writer.outputStream)
+  const smp = await smpPromise
   const zipReader = await ZipReader.from(new BufferSource(smp))
   const entries = []
   for await (const entry of zipReader) {
