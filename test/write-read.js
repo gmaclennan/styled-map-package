@@ -80,7 +80,7 @@ test('Minimal write & read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()
@@ -119,7 +119,7 @@ test('Inline GeoJSON is not removed from style', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -168,7 +168,7 @@ test('Un-added source is stripped from output', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -219,7 +219,7 @@ test('Glyphs can be written and read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()
@@ -308,7 +308,7 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -398,7 +398,7 @@ test('Can write and read sprites', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle('')
@@ -489,7 +489,7 @@ test('Can write and read style with multiple sprites', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle('')
@@ -561,7 +561,7 @@ test('Raster tiles write and read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smp)
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()

@@ -93,7 +93,8 @@ test('Reader.getVersion() returns version from SMP created by Writer', async () 
   })
   writer.finish()
   const smpBuf = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(smpBuf)
+  const zip = await ZipReader.from(new BufferSource(smpBuf))
+  const reader = new Reader(zip)
   const version = await reader.getVersion()
   assert.equal(version, '1.0')
   await reader.close()
@@ -106,7 +107,8 @@ test('Reader.getVersion() returns "1.0" for SMP without VERSION file', async () 
       data: JSON.stringify({ version: 8, sources: {}, layers: [] }),
     },
   ])
-  const reader = new Reader(zipBuffer)
+  const zip = await ZipReader.from(new BufferSource(zipBuffer))
+  const reader = new Reader(zip)
   const version = await reader.getVersion()
   assert.equal(version, '1.0')
   await reader.close()
@@ -116,15 +118,17 @@ test('Reader, invalid smp file', async () => {
   const zipBuffer = await createZipBuffer([
     { name: 'file2.txt', data: 'string cheese!' },
   ])
-  // check zip file is valid
+  // check zip file is valid and contains the expected entry
   const zipReader = await ZipReader.from(new BufferSource(zipBuffer))
   const entries = []
   for await (const entry of zipReader) {
     entries.push(entry)
   }
   assert(entries.find((entry) => entry.name === 'file2.txt'))
+  // now test Reader with a fresh ZipReader over the same buffer
+  const zip = await ZipReader.from(new BufferSource(zipBuffer))
   const expectedError = { code: 'ENOENT' }
-  const reader = new Reader(zipBuffer)
+  const reader = new Reader(zip)
   await assert.rejects(reader.getStyle(), expectedError)
   await assert.rejects(reader.getResource('/style.json'), expectedError)
   // closes without error
