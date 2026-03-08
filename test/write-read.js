@@ -2,7 +2,8 @@ import SphericalMercator from '@mapbox/sphericalmercator'
 import { bbox as turfBbox } from '@turf/bbox'
 import randomStream from 'random-bytes-readable-stream'
 import { describe, test } from 'vitest'
-import { fromBuffer, fromBuffer as zipFromBuffer } from 'yauzl-promise'
+import { ZipReader } from '@gmaclennan/zip-reader'
+import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
 
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
@@ -79,7 +80,7 @@ test('Minimal write & read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()
@@ -118,7 +119,7 @@ test('Inline GeoJSON is not removed from style', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -167,7 +168,7 @@ test('Un-added source is stripped from output', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -218,7 +219,7 @@ test('Glyphs can be written and read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()
@@ -307,7 +308,7 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
@@ -397,7 +398,7 @@ test('Can write and read sprites', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle('')
@@ -488,7 +489,7 @@ test('Can write and read style with multiple sprites', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle('')
@@ -560,7 +561,7 @@ test('Raster tiles write and read', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const reader = new Reader(await zipFromBuffer(smp))
+  const reader = new Reader(smp)
   const readerHelper = new ReaderHelper(reader)
 
   const styleOut = await reader.getStyle()
@@ -623,9 +624,12 @@ test('Optimized central directory order', async () => {
   writer.finish()
 
   const smp = await streamToBuffer(writer.outputStream)
-  const zip = await fromBuffer(smp)
-  const entries = await zip.readEntries()
-  const entriesFilenames = entries.map((e) => e.filename)
+  const zipReader = await ZipReader.from(new BufferSource(smp))
+  const entries = []
+  for await (const entry of zipReader) {
+    entries.push(entry)
+  }
+  const entriesFilenames = entries.map((e) => e.name)
 
   // 1. VERSION
   // 2. style.json

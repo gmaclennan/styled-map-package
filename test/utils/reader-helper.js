@@ -1,7 +1,6 @@
-import { once } from 'node:events'
+import { createHash } from 'node:crypto'
 
 import { replaceVariables } from '../../lib/utils/templates.js'
-import { DigestStream } from './digest-stream.js'
 
 /** @import { Reader } from '../../lib/index.js' */
 /**
@@ -19,10 +18,11 @@ export class ReaderHelper {
   /** @param {string} path */
   async #digest(path) {
     const resource = await this.#reader.getResource(path)
-    const digestStream = new DigestStream('md5')
-    resource.stream.pipe(digestStream).resume()
-    await once(digestStream, 'finish')
-    return digestStream.digest('hex')
+    const hash = createHash('md5')
+    for await (const chunk of resource.stream) {
+      hash.update(chunk)
+    }
+    return hash.digest('hex')
   }
 
   /**
