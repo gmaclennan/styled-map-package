@@ -1,36 +1,65 @@
 import SphericalMercator from '@mapbox/sphericalmercator'
 import { bbox as turfBbox } from '@turf/bbox'
-import randomStream from 'random-bytes-readable-stream'
 import { describe, test } from 'vitest'
 import { ZipReader } from '@gmaclennan/zip-reader'
 import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
 
 import assert from 'node:assert/strict'
-import { createHash } from 'node:crypto'
-import fs from 'node:fs/promises'
-import { Readable } from 'node:stream'
 
-import { Reader, Writer } from '../lib/index.js'
+import { Reader } from '../lib/reader.js'
+import { Writer } from '../lib/writer.js'
 import { tileIterator } from '../lib/tile-downloader.js'
 import { unionBBox } from '../lib/utils/geo.js'
 import { assertBboxEqual } from './utils/assert-bbox-equal.js'
 import { DigestStream } from './utils/digest-stream.js'
-import { randomImageStream } from './utils/image-streams.js'
 import { ReaderHelper } from './utils/reader-helper.js'
 import { streamToBuffer, streamToJson } from './utils/stream-consumers.js'
+import { readTextFile, writeTextFile, readdir } from './utils/io.js'
 
 /** @import { BBox } from '../lib/utils/geo.js' */
 
-/** @param {string | URL} filePath */
-async function readJson(filePath) {
-  return JSON.parse(await fs.readFile(filePath, 'utf8'))
+/** @param {string | URL} url */
+async function readJson(url) {
+  return JSON.parse(await readTextFile(url))
 }
 
-const updateSnapshots = !!process.env.UPDATE_SNAPSHOTS
+const updateSnapshots =
+  typeof process !== 'undefined' && !!process.env.UPDATE_SNAPSHOTS
+
+/**
+ * Browser-compatible random bytes ReadableStream.
+ * @param {{ size: number }} opts
+ * @returns {ReadableStream<Uint8Array>}
+ */
+function randomWebStream({ size }) {
+  return new ReadableStream({
+    start(controller) {
+      const bytes = new Uint8Array(size)
+      crypto.getRandomValues(bytes)
+      controller.enqueue(bytes)
+      controller.close()
+    },
+  })
+}
+
+/**
+ * Compute SHA-256 hex digest of a Uint8Array.
+ * @param {Uint8Array} data
+ * @returns {Promise<string>}
+ */
+async function sha256hex(data) {
+  // @ts-ignore - Uint8Array is a valid BufferSource despite TS type mismatch with ArrayBufferLike
+  const buf = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}
 
 describe('Invalid styles', async () => {
   const fixturesDir = new URL('./fixtures/invalid-styles/', import.meta.url)
-  const fixtures = await fs.readdir(fixturesDir)
+  // Vite may strip the trailing slash during static URL transformation; restore it
+  if (!fixturesDir.pathname.endsWith('/')) fixturesDir.pathname += '/'
+  const fixtures = await readdir(fixturesDir)
   for (const fixture of fixtures) {
     test(fixture, async () => {
       const stylePath = new URL(fixture, fixturesDir)
@@ -70,11 +99,11 @@ test('Minimal write & read', async () => {
 
   const tileHashes = new Map()
   for (const { x, y, z } of tileIterator({ maxzoom: 5, bounds })) {
-    const digest = new DigestStream('md5')
-    const stream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(2048, 4096) }))).pipeThrough(digest)
+    const digest = new DigestStream()
+    const stream = randomWebStream({ size: random(2048, 4096) }).pipeThrough(digest)
     await writer.addTile(stream, { x, y, z, sourceId, format: 'mvt' })
     const tileId = `${z}/${x}/${y}`
-    tileHashes.set(tileId, digest.digest('hex'))
+    tileHashes.set(tileId, await digest.digest())
   }
 
   writer.finish()
@@ -202,7 +231,7 @@ test('Glyphs can be written and read', async () => {
   const font = 'Open Sans Semibold'
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -213,10 +242,10 @@ test('Glyphs can be written and read', async () => {
   /** @type {Map<string, string>} */
   const glyphHashes = new Map()
   for (const range of glyphRanges()) {
-    const digest = new DigestStream('md5')
-    const stream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(256, 1024) }))).pipeThrough(digest)
+    const digest = new DigestStream()
+    const stream = randomWebStream({ size: random(256, 1024) }).pipeThrough(digest)
     await writer.addGlyphs(stream, { range, font })
-    glyphHashes.set(range, digest.digest('hex'))
+    glyphHashes.set(range, await digest.digest())
   }
   writer.finish()
 
@@ -250,7 +279,7 @@ test('Missing glyphs throws an error', async () => {
   assert(typeof styleIn.glyphs === 'string', 'input style has glyphs URL')
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -306,7 +335,7 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   )
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -345,7 +374,7 @@ test('Missing sprites throws an error', async () => {
   assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -373,7 +402,7 @@ test('Can write and read sprites', async () => {
   assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -381,10 +410,10 @@ test('Can write and read sprites', async () => {
     format: 'mvt',
   })
 
-  const sprite1xDigest = new DigestStream('md5')
-  const sprite1xImageStream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(1024, 2048) }))).pipeThrough(sprite1xDigest)
-  const sprite2xDigest = new DigestStream('md5')
-  const sprite2xImageStream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(1024, 2048) }))).pipeThrough(sprite2xDigest)
+  const sprite1xDigest = new DigestStream()
+  const sprite1xImageStream = randomWebStream({ size: random(1024, 2048) }).pipeThrough(sprite1xDigest)
+  const sprite2xDigest = new DigestStream()
+  const sprite2xImageStream = randomWebStream({ size: random(1024, 2048) }).pipeThrough(sprite2xDigest)
   const spriteLayoutIn = {
     airfield_11: {
       height: 17,
@@ -398,13 +427,13 @@ test('Can write and read sprites', async () => {
     png: sprite1xImageStream,
     json: JSON.stringify(spriteLayoutIn),
   })
-  const sprite1xImageHash = sprite1xDigest.digest('hex')
+  const sprite1xImageHash = await sprite1xDigest.digest()
   await writer.addSprite({
     png: sprite2xImageStream,
     json: JSON.stringify(spriteLayoutIn),
     pixelRatio: 2,
   })
-  const sprite2xImageHash = sprite2xDigest.digest('hex')
+  const sprite2xImageHash = await sprite2xDigest.digest()
 
   writer.finish()
 
@@ -453,7 +482,7 @@ test('Can write and read style with multiple sprites', async () => {
   assert(Array.isArray(styleIn.sprite), 'input style has array of sprites')
 
   // Need to add at least one tile for the source
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(randomWebStream({ size: 1024 }), {
     x: 0,
     y: 0,
     z: 0,
@@ -461,14 +490,14 @@ test('Can write and read style with multiple sprites', async () => {
     format: 'mvt',
   })
 
-  const spriteRoadsignsDigest = new DigestStream('md5')
-  const spriteRoadsignsImageStream = /** @type {any} */ (Readable.toWeb(
-    randomStream({ size: random(1024, 2048) }),
-  )).pipeThrough(spriteRoadsignsDigest)
-  const spriteDefaultDigest = new DigestStream('md5')
-  const spriteDefaultImageStream = /** @type {any} */ (Readable.toWeb(
-    randomStream({ size: random(1024, 2048) }),
-  )).pipeThrough(spriteDefaultDigest)
+  const spriteRoadsignsDigest = new DigestStream()
+  const spriteRoadsignsImageStream = randomWebStream({
+    size: random(1024, 2048),
+  }).pipeThrough(spriteRoadsignsDigest)
+  const spriteDefaultDigest = new DigestStream()
+  const spriteDefaultImageStream = randomWebStream({
+    size: random(1024, 2048),
+  }).pipeThrough(spriteDefaultDigest)
   const spriteRoadsignsLayoutIn = {
     airfield_11: {
       height: 17,
@@ -491,13 +520,13 @@ test('Can write and read style with multiple sprites', async () => {
     png: spriteDefaultImageStream,
     json: JSON.stringify(spriteDefaultLayoutIn),
   })
-  const spriteDefaultImageHash = spriteDefaultDigest.digest('hex')
+  const spriteDefaultImageHash = await spriteDefaultDigest.digest()
   await writer.addSprite({
     id: 'roadsigns',
     png: spriteRoadsignsImageStream,
     json: JSON.stringify(spriteRoadsignsLayoutIn),
   })
-  const spriteRoadsignsImageHash = spriteRoadsignsDigest.digest('hex')
+  const spriteRoadsignsImageHash = await spriteRoadsignsDigest.digest()
 
   writer.finish()
 
@@ -546,7 +575,11 @@ test('Can write and read style with multiple sprites', async () => {
   )
 })
 
-test('Raster tiles write and read', async () => {
+// Sharp is a Node.js native module — skip this test in browser environments
+test.skipIf(typeof window !== 'undefined')('Raster tiles write and read', async () => {
+  // Dynamic import keeps sharp out of the browser bundle
+  const { randomImageStream } = await import('./utils/image-streams.js')
+
   const styleInUrl = new URL(
     './fixtures/valid-styles/raster-sources.input.json',
     import.meta.url,
@@ -561,8 +594,8 @@ test('Raster tiles write and read', async () => {
   const jpgTileId = { x: 0, y: 0, z: 0, sourceId: 'jpg-tiles' }
   await writer.addTile(pngBuffer, { ...pngTileId, format: 'png' })
   await writer.addTile(jpgBuffer, { ...jpgTileId, format: 'jpg' })
-  const pngTileHash = createHash('md5').update(pngBuffer).digest('hex')
-  const jpgTileHash = createHash('md5').update(jpgBuffer).digest('hex')
+  const pngTileHash = await sha256hex(pngBuffer)
+  const jpgTileHash = await sha256hex(jpgBuffer)
 
   writer.finish()
 
@@ -595,7 +628,7 @@ test('Optimized central directory order', async () => {
 
   for (const { x, y, z } of tileIterator({ maxzoom: 5, bounds })) {
     for (const sourceId of ['source1', 'source2']) {
-      await writer.addTile(randomStream({ size: random(2048, 4096) }), {
+      await writer.addTile(randomWebStream({ size: random(2048, 4096) }), {
         x,
         y,
         z,
@@ -607,14 +640,14 @@ test('Optimized central directory order', async () => {
 
   for (const range of glyphRanges()) {
     for (const font of ['font1', 'font2']) {
-      await writer.addGlyphs(randomStream({ size: random(256, 1024) }), {
+      await writer.addGlyphs(randomWebStream({ size: random(256, 1024) }), {
         range,
         font,
       })
     }
   }
 
-  const spriteImageStream = randomStream({ size: random(1024, 2048) })
+  const spriteImageStream = randomWebStream({ size: random(1024, 2048) })
   const spriteLayoutIn = {
     airfield_11: {
       height: 17,
@@ -688,14 +721,14 @@ async function compareAndSnapshotStyle({ styleInUrl, styleOut }) {
     throw new Error('Snapshot URL is the same as input')
   }
   if (updateSnapshots) {
-    await fs.writeFile(snapshotUrl, JSON.stringify(styleOut, null, 2))
+    await writeTextFile(snapshotUrl, JSON.stringify(styleOut, null, 2))
   } else {
     try {
       const expected = await readJson(snapshotUrl)
       assert.deepEqual(styleOut, expected)
     } catch (e) {
       if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
-        await fs.writeFile(snapshotUrl, JSON.stringify(styleOut, null, 2))
+        await writeTextFile(snapshotUrl, JSON.stringify(styleOut, null, 2))
       }
     }
   }

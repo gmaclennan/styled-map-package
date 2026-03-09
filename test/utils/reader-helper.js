@@ -1,10 +1,10 @@
-import { createHash } from 'node:crypto'
-
 import { replaceVariables } from '../../lib/utils/templates.js'
 
 /** @import { Reader } from '../../lib/index.js' */
+
 /**
  * A helper class for reading resources from a styled map package.
+ * Uses the Web Crypto API for hashing (works in both Node.js 18+ and browsers).
  */
 export class ReaderHelper {
   #reader
@@ -18,11 +18,21 @@ export class ReaderHelper {
   /** @param {string} path */
   async #digest(path) {
     const resource = await this.#reader.getResource(path)
-    const hash = createHash('md5')
+    const chunks = /** @type {Uint8Array[]} */ ([])
     for await (const chunk of resource.stream) {
-      hash.update(chunk)
+      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
     }
-    return hash.digest('hex')
+    const totalLen = chunks.reduce((s, c) => s + c.byteLength, 0)
+    const buf = new Uint8Array(totalLen)
+    let off = 0
+    for (const chunk of chunks) {
+      buf.set(chunk, off)
+      off += chunk.byteLength
+    }
+    const hashBuf = await crypto.subtle.digest('SHA-256', buf)
+    return Array.from(new Uint8Array(hashBuf))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
   }
 
   /**

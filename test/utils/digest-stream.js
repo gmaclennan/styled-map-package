@@ -1,20 +1,42 @@
-import { createHash } from 'node:crypto'
-
 /**
- * A web TransformStream that calculates a digest of the data passing through
- * it. Implements ReadableWritablePair for use with pipeThrough().
+ * A web TransformStream that calculates a SHA-256 digest of the data passing
+ * through it. Uses the Web Crypto API so it works in both Node.js 18+ and
+ * browsers. Implements ReadableWritablePair for use with pipeThrough().
  */
 export class DigestStream {
-  #hash
   #transform
+  /** @type {Promise<string>} */
+  #digestPromise
 
-  /** @param {string} algorithm */
-  constructor(algorithm) {
-    this.#hash = createHash(algorithm)
+  constructor() {
+    const chunks = /** @type {Uint8Array[]} */ ([])
+    /** @type {(hex: string) => void} */
+    let resolve
+    this.#digestPromise = new Promise((r) => {
+      resolve = r
+    })
     this.#transform = new TransformStream({
-      transform: (chunk, controller) => {
-        this.#hash.update(chunk)
+      /**
+       * @param {Uint8Array} chunk
+       * @param {TransformStreamDefaultController} controller
+       */
+      transform(chunk, controller) {
+        chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
         controller.enqueue(chunk)
+      },
+      flush: async () => {
+        const totalLen = chunks.reduce((s, c) => s + c.byteLength, 0)
+        const buf = new Uint8Array(totalLen)
+        let off = 0
+        for (const chunk of chunks) {
+          buf.set(chunk, off)
+          off += chunk.byteLength
+        }
+        const hashBuf = await crypto.subtle.digest('SHA-256', buf)
+        const hex = Array.from(new Uint8Array(hashBuf))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+        resolve(hex)
       },
     })
   }
@@ -28,13 +50,13 @@ export class DigestStream {
   }
 
   /**
-   * Calculates the digest of all data passed through the stream.
+   * Returns the hex digest of all data passed through the stream.
+   * Must be called after the stream has been fully consumed (i.e. after the
+   * pipeline has settled).
    *
-   * Must be called after the stream has been fully consumed.
-   *
-   * @param {import('node:crypto').BinaryToTextEncoding} [encoding]
+   * @returns {Promise<string>}
    */
-  digest(encoding = 'binary') {
-    return this.#hash.digest(encoding)
+  digest() {
+    return this.#digestPromise
   }
 }
