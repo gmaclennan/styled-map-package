@@ -38,6 +38,7 @@ export default defineConfig({
             instances: [{ browser: 'chromium' }],
             commands: {
               readdir: (await import('./test/commands.js')).readdir,
+              randomImage: (await import('./test/commands.js')).randomImage,
             },
           },
         },

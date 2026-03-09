@@ -575,10 +575,27 @@ test('Can write and read style with multiple sprites', async () => {
   )
 })
 
-// Sharp is a Node.js native module — skip this test in browser environments
-test.skipIf(typeof window !== 'undefined')('Raster tiles write and read', async () => {
-  // Dynamic import keeps sharp out of the browser bundle
-  const { randomImageStream } = await import('./utils/image-streams.js')
+test('Raster tiles write and read', async () => {
+  /**
+   * Generate a random image buffer. In Node, uses Sharp directly; in the
+   * browser, delegates to the server-side randomImage command and decodes the
+   * returned base64 string.
+   *
+   * @param {{ width: number, height: number, format: 'png' | 'jpg' }} opts
+   * @returns {Promise<Uint8Array>}
+   */
+  async function makeImage(opts) {
+    if (typeof window === 'undefined') {
+      const { randomImageStream } = await import('./utils/image-streams.js')
+      return randomImageStream(opts).toBuffer()
+    }
+    const { commands } = await import('@vitest/browser/context')
+    const b64 = await commands.randomImage(opts)
+    const binary = atob(b64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    return bytes
+  }
 
   const styleInUrl = new URL(
     './fixtures/valid-styles/raster-sources.input.json',
@@ -588,8 +605,8 @@ test.skipIf(typeof window !== 'undefined')('Raster tiles write and read', async 
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  const pngBuffer = await randomImageStream({ width: 256, height: 256, format: 'png' }).toBuffer()
-  const jpgBuffer = await randomImageStream({ width: 256, height: 256, format: 'jpg' }).toBuffer()
+  const pngBuffer = await makeImage({ width: 256, height: 256, format: 'png' })
+  const jpgBuffer = await makeImage({ width: 256, height: 256, format: 'jpg' })
   const pngTileId = { x: 0, y: 0, z: 0, sourceId: 'png-tiles' }
   const jpgTileId = { x: 0, y: 0, z: 0, sourceId: 'jpg-tiles' }
   await writer.addTile(pngBuffer, { ...pngTileId, format: 'png' })
