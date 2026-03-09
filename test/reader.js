@@ -8,22 +8,20 @@ import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
 import { closeSync, openSync } from 'node:fs'
-import { buffer, buffer as streamToBuffer } from 'node:stream/consumers'
-import { Readable } from 'node:stream'
 
 import { Reader, Writer } from '../lib/index.js'
+import { streamToBuffer } from './utils/stream-consumers.js'
 
 const enc = new TextEncoder()
 
 /**
  * Create a zip buffer with given entries using zip-writer.
  * @param {Array<{ name: string, data: string | Uint8Array }>} entries
- * @returns {Promise<Buffer>}
+ * @returns {Promise<Uint8Array>}
  */
 async function createZipBuffer(entries) {
   const zw = new ZipWriter()
-  // @ts-ignore - ZipWriter readable is node:stream/web.ReadableStream, incompatible with global ReadableStream type
-  const outputPromise = buffer(Readable.fromWeb(zw.readable))
+  const outputPromise = streamToBuffer(/** @type {ReadableStream<Uint8Array>} */ (zw.readable))
   for (const { name, data } of entries) {
     const bytes = typeof data === 'string' ? enc.encode(data) : data
     await zw.addEntry({

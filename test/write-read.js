@@ -6,11 +6,9 @@ import { ZipReader } from '@gmaclennan/zip-reader'
 import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
 
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
-import {
-  buffer as streamToBuffer,
-  json as streamToJson,
-} from 'node:stream/consumers'
+import { Readable } from 'node:stream'
 
 import { Reader, Writer } from '../lib/index.js'
 import { tileIterator } from '../lib/tile-downloader.js'
@@ -19,6 +17,7 @@ import { assertBboxEqual } from './utils/assert-bbox-equal.js'
 import { DigestStream } from './utils/digest-stream.js'
 import { randomImageStream } from './utils/image-streams.js'
 import { ReaderHelper } from './utils/reader-helper.js'
+import { streamToBuffer, streamToJson } from './utils/stream-consumers.js'
 
 /** @import { BBox } from '../lib/utils/geo.js' */
 
@@ -71,12 +70,11 @@ test('Minimal write & read', async () => {
 
   const tileHashes = new Map()
   for (const { x, y, z } of tileIterator({ maxzoom: 5, bounds })) {
-    const stream = randomStream({ size: random(2048, 4096) }).pipe(
-      new DigestStream('md5'),
-    )
+    const digest = new DigestStream('md5')
+    const stream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(2048, 4096) }))).pipeThrough(digest)
     await writer.addTile(stream, { x, y, z, sourceId, format: 'mvt' })
     const tileId = `${z}/${x}/${y}`
-    tileHashes.set(tileId, await stream.digest('hex'))
+    tileHashes.set(tileId, digest.digest('hex'))
   }
 
   writer.finish()
@@ -215,11 +213,10 @@ test('Glyphs can be written and read', async () => {
   /** @type {Map<string, string>} */
   const glyphHashes = new Map()
   for (const range of glyphRanges()) {
-    const stream = randomStream({ size: random(256, 1024) }).pipe(
-      new DigestStream('md5'),
-    )
+    const digest = new DigestStream('md5')
+    const stream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(256, 1024) }))).pipeThrough(digest)
     await writer.addGlyphs(stream, { range, font })
-    glyphHashes.set(range, await stream.digest('hex'))
+    glyphHashes.set(range, digest.digest('hex'))
   }
   writer.finish()
 
@@ -384,12 +381,10 @@ test('Can write and read sprites', async () => {
     format: 'mvt',
   })
 
-  const sprite1xImageStream = randomStream({ size: random(1024, 2048) }).pipe(
-    new DigestStream('md5'),
-  )
-  const sprite2xImageStream = randomStream({ size: random(1024, 2048) }).pipe(
-    new DigestStream('md5'),
-  )
+  const sprite1xDigest = new DigestStream('md5')
+  const sprite1xImageStream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(1024, 2048) }))).pipeThrough(sprite1xDigest)
+  const sprite2xDigest = new DigestStream('md5')
+  const sprite2xImageStream = /** @type {any} */ (Readable.toWeb(randomStream({ size: random(1024, 2048) }))).pipeThrough(sprite2xDigest)
   const spriteLayoutIn = {
     airfield_11: {
       height: 17,
@@ -403,13 +398,13 @@ test('Can write and read sprites', async () => {
     png: sprite1xImageStream,
     json: JSON.stringify(spriteLayoutIn),
   })
-  const sprite1xImageHash = await sprite1xImageStream.digest('hex')
+  const sprite1xImageHash = sprite1xDigest.digest('hex')
   await writer.addSprite({
     png: sprite2xImageStream,
     json: JSON.stringify(spriteLayoutIn),
     pixelRatio: 2,
   })
-  const sprite2xImageHash = await sprite2xImageStream.digest('hex')
+  const sprite2xImageHash = sprite2xDigest.digest('hex')
 
   writer.finish()
 
@@ -466,12 +461,14 @@ test('Can write and read style with multiple sprites', async () => {
     format: 'mvt',
   })
 
-  const spriteRoadsignsImageStream = randomStream({
-    size: random(1024, 2048),
-  }).pipe(new DigestStream('md5'))
-  const spriteDefaultImageStream = randomStream({
-    size: random(1024, 2048),
-  }).pipe(new DigestStream('md5'))
+  const spriteRoadsignsDigest = new DigestStream('md5')
+  const spriteRoadsignsImageStream = /** @type {any} */ (Readable.toWeb(
+    randomStream({ size: random(1024, 2048) }),
+  )).pipeThrough(spriteRoadsignsDigest)
+  const spriteDefaultDigest = new DigestStream('md5')
+  const spriteDefaultImageStream = /** @type {any} */ (Readable.toWeb(
+    randomStream({ size: random(1024, 2048) }),
+  )).pipeThrough(spriteDefaultDigest)
   const spriteRoadsignsLayoutIn = {
     airfield_11: {
       height: 17,
@@ -494,14 +491,13 @@ test('Can write and read style with multiple sprites', async () => {
     png: spriteDefaultImageStream,
     json: JSON.stringify(spriteDefaultLayoutIn),
   })
-  const spriteDefaultImageHash = await spriteDefaultImageStream.digest('hex')
+  const spriteDefaultImageHash = spriteDefaultDigest.digest('hex')
   await writer.addSprite({
     id: 'roadsigns',
     png: spriteRoadsignsImageStream,
     json: JSON.stringify(spriteRoadsignsLayoutIn),
   })
-  const spriteRoadsignsImageHash =
-    await spriteRoadsignsImageStream.digest('hex')
+  const spriteRoadsignsImageHash = spriteRoadsignsDigest.digest('hex')
 
   writer.finish()
 
@@ -559,22 +555,14 @@ test('Raster tiles write and read', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  const pngStream = randomImageStream({
-    width: 256,
-    height: 256,
-    format: 'png',
-  }).pipe(new DigestStream('md5'))
-  const jpgStream = randomImageStream({
-    width: 256,
-    height: 256,
-    format: 'jpg',
-  }).pipe(new DigestStream('md5'))
+  const pngBuffer = await randomImageStream({ width: 256, height: 256, format: 'png' }).toBuffer()
+  const jpgBuffer = await randomImageStream({ width: 256, height: 256, format: 'jpg' }).toBuffer()
   const pngTileId = { x: 0, y: 0, z: 0, sourceId: 'png-tiles' }
   const jpgTileId = { x: 0, y: 0, z: 0, sourceId: 'jpg-tiles' }
-  await writer.addTile(pngStream, { ...pngTileId, format: 'png' })
-  await writer.addTile(jpgStream, { ...jpgTileId, format: 'jpg' })
-  const pngTileHash = await pngStream.digest('hex')
-  const jpgTileHash = await jpgStream.digest('hex')
+  await writer.addTile(pngBuffer, { ...pngTileId, format: 'png' })
+  await writer.addTile(jpgBuffer, { ...jpgTileId, format: 'jpg' })
+  const pngTileHash = createHash('md5').update(pngBuffer).digest('hex')
+  const jpgTileHash = createHash('md5').update(jpgBuffer).digest('hex')
 
   writer.finish()
 
@@ -607,25 +595,26 @@ test('Optimized central directory order', async () => {
 
   for (const { x, y, z } of tileIterator({ maxzoom: 5, bounds })) {
     for (const sourceId of ['source1', 'source2']) {
-      const stream = randomStream({ size: random(2048, 4096) }).pipe(
-        new DigestStream('md5'),
-      )
-      await writer.addTile(stream, { x, y, z, sourceId, format: 'mvt' })
+      await writer.addTile(randomStream({ size: random(2048, 4096) }), {
+        x,
+        y,
+        z,
+        sourceId,
+        format: 'mvt',
+      })
     }
   }
 
   for (const range of glyphRanges()) {
     for (const font of ['font1', 'font2']) {
-      const stream = randomStream({ size: random(256, 1024) }).pipe(
-        new DigestStream('md5'),
-      )
-      await writer.addGlyphs(stream, { range, font })
+      await writer.addGlyphs(randomStream({ size: random(256, 1024) }), {
+        range,
+        font,
+      })
     }
   }
 
-  const spriteImageStream = randomStream({ size: random(1024, 2048) }).pipe(
-    new DigestStream('md5'),
-  )
+  const spriteImageStream = randomStream({ size: random(1024, 2048) })
   const spriteLayoutIn = {
     airfield_11: {
       height: 17,

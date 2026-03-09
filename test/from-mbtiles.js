@@ -24,7 +24,7 @@ test('convert from MBTiles', async () => {
   })
 
   await Promise.all([
-    fromMBTiles(fixture, output1),
+    fromMBTiles(fixture).pipeTo(Writable.toWeb(fs.createWriteStream(output1))),
     fromMBTiles(fixture).pipeTo(Writable.toWeb(fs.createWriteStream(output2))),
   ])
 

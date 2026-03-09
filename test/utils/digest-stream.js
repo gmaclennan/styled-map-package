@@ -1,33 +1,36 @@
 import { createHash } from 'node:crypto'
-import { Transform } from 'node:stream'
 
 /**
- * A passthrough stream that calculates a digest of the data passing through it.
+ * A web TransformStream that calculates a digest of the data passing through
+ * it. Implements ReadableWritablePair for use with pipeThrough().
  */
-export class DigestStream extends Transform {
+export class DigestStream {
   #hash
+  #transform
+
   /** @param {string} algorithm */
   constructor(algorithm) {
-    super()
     this.#hash = createHash(algorithm)
+    this.#transform = new TransformStream({
+      transform: (chunk, controller) => {
+        this.#hash.update(chunk)
+        controller.enqueue(chunk)
+      },
+    })
   }
-  /**
-   * @override
-   * @param {*} chunk
-   * @param {BufferEncoding} encoding
-   * @param {import('node:stream').TransformCallback} callback
-   */
-  _transform(chunk, encoding, callback) {
-    this.#hash.update(chunk)
-    callback(null, chunk)
+
+  get readable() {
+    return this.#transform.readable
   }
+
+  get writable() {
+    return this.#transform.writable
+  }
+
   /**
-   * Calculates the digest of all of the data passed through the stream. If
-   * encoding is provided a string will be returned; otherwise a Buffer is
-   * returned.
+   * Calculates the digest of all data passed through the stream.
    *
-   * The stream can not be used again after the `digest()` method has been
-   * called. Multiple calls will cause an error to be thrown.
+   * Must be called after the stream has been fully consumed.
    *
    * @param {import('node:crypto').BinaryToTextEncoding} [encoding]
    */
