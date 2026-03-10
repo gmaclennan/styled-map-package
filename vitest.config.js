@@ -1,10 +1,10 @@
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+
+import { fileURLToPath } from 'node:url'
 
 /** Files that are helpers/utilities, not test suites */
 const nonTestFiles = [
   'test/commands.js',
-  'test/server.js',
   'test/utils/**/*.js',
   'test/download-write-read.js',
 ]
@@ -47,7 +47,9 @@ export default defineConfig({
             // Swap Node.js file I/O helpers with browser-compatible versions
             {
               find: './utils/io.js',
-              replacement: fileURLToPath(new URL('./test/utils/io.browser.js', import.meta.url)),
+              replacement: fileURLToPath(
+                new URL('./test/utils/io.browser.js', import.meta.url),
+              ),
             },
             // Stub node:stream so lib/writer.js can be bundled for the browser
             {
@@ -60,7 +62,10 @@ export default defineConfig({
             {
               find: 'node:assert/strict',
               replacement: fileURLToPath(
-                new URL('./test/utils/stubs/node-assert-strict.js', import.meta.url),
+                new URL(
+                  './test/utils/stubs/node-assert-strict.js',
+                  import.meta.url,
+                ),
               ),
             },
           ],
