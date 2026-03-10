@@ -53,5 +53,6 @@ export async function writeTextFile(url, content) {
  * @returns {Promise<string[]>}
  */
 export async function readdir(url) {
+  // @ts-ignore - commands.readdir is a custom browser command
   return commands.readdir(toServerPath(url))
 }
