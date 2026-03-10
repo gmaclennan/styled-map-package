@@ -1,10 +1,8 @@
 import SphericalMercator from '@mapbox/sphericalmercator'
 import { bbox as turfBbox } from '@turf/bbox'
-import { describe, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { ZipReader } from '@gmaclennan/zip-reader'
 import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
-
-import assert from 'node:assert/strict'
 
 import { Reader } from '../lib/reader.js'
 import { Writer } from '../lib/writer.js'
@@ -64,15 +62,10 @@ describe('Invalid styles', async () => {
     test(fixture, async () => {
       const stylePath = new URL(fixture, fixturesDir)
       const style = await readJson(stylePath)
-      await assert.rejects(
-        async () => {
-          new Writer(style)
-        },
-        {
-          message: /Invalid style/,
-        },
+      expect(
+        () => { new Writer(style) },
         `Expected ${fixture} to throw an error`,
-      )
+      ).toThrow(/Invalid style/)
     })
   }
 })
@@ -129,11 +122,7 @@ test('Minimal write & read', async () => {
 
   for (const { x, y, z } of tileIterator({ maxzoom: 5, bounds })) {
     const hash = await readerHelper.getTileHash({ x, y, z, sourceId })
-    assert.equal(
-      hash,
-      tileHashes.get(`${z}/${x}/${y}`),
-      `Tile ${z}/${x}/${y} is the same`,
-    )
+    expect(hash, `Tile ${z}/${x}/${y} is the same`).toBe(tileHashes.get(`${z}/${x}/${y}`))
   }
 })
 
@@ -154,13 +143,9 @@ test('Inline GeoJSON is not removed from style', async () => {
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
 
-  assert.equal(styleOut.sources.crimea.type, 'geojson')
+  expect(styleOut.sources.crimea.type).toBe('geojson')
   const { bbox, ...geoJsonOut } = styleOut.sources.crimea.data
-  assert.deepEqual(
-    geoJsonOut,
-    styleIn.sources.crimea.data,
-    'GeoJSON is the same',
-  )
+  expect(geoJsonOut, 'GeoJSON is the same').toEqual(styleIn.sources.crimea.data)
   const expectedBbox = turfBbox(styleIn.sources.crimea.data)
   assertBboxEqual(bbox, expectedBbox, 'GeoJSON has correct bbox added')
   assertBboxEqual(
@@ -168,11 +153,7 @@ test('Inline GeoJSON is not removed from style', async () => {
     expectedBbox,
     'Style has correct bounds metadata added',
   )
-  assert.equal(
-    styleOut.metadata['smp:maxzoom'],
-    16,
-    'Style has correct maxzoom metadata added for GeoJSON',
-  )
+  expect(styleOut.metadata['smp:maxzoom'], 'Style has correct maxzoom metadata added for GeoJSON').toBe(16)
 })
 
 test('Un-added source is stripped from output', async () => {
@@ -183,16 +164,15 @@ test('Un-added source is stripped from output', async () => {
 
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = await readJson(styleInUrl)
-  assert('maplibre' in styleIn.sources, 'input style contains maplibre source')
+  expect('maplibre' in styleIn.sources, 'input style contains maplibre source').toBe(true)
   const styleInGeoJsonSourceEntry = Object.entries(styleIn.sources).find(
     ([, source]) => source.type === 'geojson',
   )
-  assert(styleInGeoJsonSourceEntry, 'input style contains geojson source')
-  assert(
-    styleIn.layers.filter((l) => 'source' in l && l.source === 'maplibre')
-      .length > 0,
+  expect(styleInGeoJsonSourceEntry, 'input style contains geojson source').toBeTruthy()
+  expect(
+    styleIn.layers.filter((l) => 'source' in l && l.source === 'maplibre').length > 0,
     'input style contains layers with maplibre source',
-  )
+  ).toBe(true)
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
@@ -203,18 +183,12 @@ test('Un-added source is stripped from output', async () => {
 
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
-  assert.deepEqual(
-    Object.keys(styleOut.sources),
-    [styleInGeoJsonSourceEntry[0]],
-    'output style only contains geojson source',
-  )
-  assert(styleOut.layers.length > 0, 'output style contains layers')
-  assert.equal(
-    styleOut.layers.filter((l) => 'source' in l && l.source === 'maplibre')
-      .length,
-    0,
+  expect(Object.keys(styleOut.sources), 'output style only contains geojson source').toEqual([styleInGeoJsonSourceEntry[0]])
+  expect(styleOut.layers.length > 0, 'output style contains layers').toBe(true)
+  expect(
+    styleOut.layers.filter((l) => 'source' in l && l.source === 'maplibre').length,
     'output style does not contain layers with maplibre source',
-  )
+  ).toBe(0)
 })
 
 test('Glyphs can be written and read', async () => {
@@ -227,7 +201,7 @@ test('Glyphs can be written and read', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(typeof styleIn.glyphs === 'string', 'input style has glyphs URL')
+  expect(typeof styleIn.glyphs === 'string', 'input style has glyphs URL').toBe(true)
   const font = 'Open Sans Semibold'
 
   // Need to add at least one tile for the source
@@ -258,11 +232,7 @@ test('Glyphs can be written and read', async () => {
 
   for (const range of glyphRanges()) {
     const hash = await readerHelper.getGlyphHash({ range, font })
-    assert.equal(
-      hash,
-      glyphHashes.get(range),
-      `Glyphs for ${range} are the same`,
-    )
+    expect(hash, `Glyphs for ${range} are the same`).toBe(glyphHashes.get(range))
   }
 })
 
@@ -276,7 +246,7 @@ test('Missing glyphs throws an error', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(typeof styleIn.glyphs === 'string', 'input style has glyphs URL')
+  expect(typeof styleIn.glyphs === 'string', 'input style has glyphs URL').toBe(true)
 
   // Need to add at least one tile for the source
   await writer.addTile(randomWebStream({ size: 1024 }), {
@@ -287,9 +257,7 @@ test('Missing glyphs throws an error', async () => {
     format: 'mvt',
   })
 
-  await assert.rejects(async () => writer.finish(), {
-    message: /Missing fonts/,
-  })
+  await expect(() => writer.finish()).rejects.toThrow(/Missing fonts/)
   writer.abort(new Error('cleanup'))
   await smpPromise.catch(() => {})
 })
@@ -303,9 +271,7 @@ test('Finishing writer with no sources throws and error', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  await assert.rejects(async () => writer.finish(), {
-    message: /Missing sources/,
-  })
+  await expect(() => writer.finish()).rejects.toThrow(/Missing sources/)
   writer.abort(new Error('cleanup'))
   await smpPromise.catch(() => {})
 })
@@ -320,19 +286,15 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(
+  expect(
     'crimea' in styleIn.sources && styleIn.sources.crimea.type === 'geojson',
     'input style contains crimea geojson source',
-  )
-  assert.equal(
-    typeof styleIn.sources.crimea.data,
-    'string',
-    'geojson source is external (data is URL)',
-  )
-  assert(
+  ).toBe(true)
+  expect(typeof styleIn.sources.crimea.data, 'geojson source is external (data is URL)').toBe('string')
+  expect(
     styleIn.layers.find((l) => 'source' in l && l.source === 'crimea'),
     'input style contains layers with crimea source',
-  )
+  ).toBeTruthy()
 
   // Need to add at least one tile for the source
   await writer.addTile(randomWebStream({ size: 1024 }), {
@@ -351,14 +313,11 @@ test('External GeoJSON & layers that use it are excluded if not added', async ()
   const styleOut = await reader.getStyle()
   await compareAndSnapshotStyle({ styleInUrl, styleOut })
 
-  assert(
-    !('crimea' in styleOut.sources),
-    'output style does not contain crimea geojson source',
-  )
-  assert(
-    !styleOut.layers.find((l) => 'source' in l && l.source === 'crimea'),
+  expect('crimea' in styleOut.sources, 'output style does not contain crimea geojson source').toBe(false)
+  expect(
+    styleOut.layers.find((l) => 'source' in l && l.source === 'crimea'),
     'output style does not contain layers with crimea source',
-  )
+  ).toBeFalsy()
 })
 
 test('Missing sprites throws an error', async () => {
@@ -371,7 +330,7 @@ test('Missing sprites throws an error', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
+  expect(typeof styleIn.sprite === 'string', 'input style has sprite URL').toBe(true)
 
   // Need to add at least one tile for the source
   await writer.addTile(randomWebStream({ size: 1024 }), {
@@ -382,9 +341,7 @@ test('Missing sprites throws an error', async () => {
     format: 'mvt',
   })
 
-  await assert.rejects(async () => writer.finish(), {
-    message: /Missing sprite/,
-  })
+  await expect(() => writer.finish()).rejects.toThrow(/Missing sprite/)
   writer.abort(new Error('cleanup'))
   await smpPromise.catch(() => {})
 })
@@ -399,7 +356,7 @@ test('Can write and read sprites', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(typeof styleIn.sprite === 'string', 'input style has sprite URL')
+  expect(typeof styleIn.sprite === 'string', 'input style has sprite URL').toBe(true)
 
   // Need to add at least one tile for the source
   await writer.addTile(randomWebStream({ size: 1024 }), {
@@ -450,23 +407,12 @@ test('Can write and read sprites', async () => {
     pixelRatio: 2,
   })
   const spriteJsonResource = await reader.getResource(styleOut.sprite + '.json')
-  assert.equal(
-    spriteJsonResource.contentType,
-    'application/json; charset=utf-8',
-  )
+  expect(spriteJsonResource.contentType).toBe('application/json; charset=utf-8')
   const spriteLayoutOut = await streamToJson(spriteJsonResource.stream)
 
-  assert.equal(
-    sprite1xImageHashOut,
-    sprite1xImageHash,
-    'Sprite image is the same',
-  )
-  assert.equal(
-    sprite2xImageHashOut,
-    sprite2xImageHash,
-    'Sprite @2x image is the same',
-  )
-  assert.deepEqual(spriteLayoutOut, spriteLayoutIn, 'Sprite layout is the same')
+  expect(sprite1xImageHashOut, 'Sprite image is the same').toBe(sprite1xImageHash)
+  expect(sprite2xImageHashOut, 'Sprite @2x image is the same').toBe(sprite2xImageHash)
+  expect(spriteLayoutOut, 'Sprite layout is the same').toEqual(spriteLayoutIn)
 })
 
 test('Can write and read style with multiple sprites', async () => {
@@ -479,7 +425,7 @@ test('Can write and read style with multiple sprites', async () => {
   const writer = new Writer(styleIn)
   const smpPromise = streamToBuffer(writer.outputStream)
 
-  assert(Array.isArray(styleIn.sprite), 'input style has array of sprites')
+  expect(Array.isArray(styleIn.sprite), 'input style has array of sprites').toBe(true)
 
   // Need to add at least one tile for the source
   await writer.addTile(randomWebStream({ size: 1024 }), {
@@ -553,26 +499,10 @@ test('Can write and read style with multiple sprites', async () => {
   const defaultLayoutOut = await streamToJson(defaultJsonResource.stream)
   const roadsignsLayoutOut = await streamToJson(roadsignsJsonResource.stream)
 
-  assert.equal(
-    spriteDefaultImageHashOut,
-    spriteDefaultImageHash,
-    'Sprite image is the same',
-  )
-  assert.equal(
-    spriteRoadsignsImageHashOut,
-    spriteRoadsignsImageHash,
-    'Sprite @2x image is the same',
-  )
-  assert.deepEqual(
-    defaultLayoutOut,
-    spriteDefaultLayoutIn,
-    'Sprite layout is the same',
-  )
-  assert.deepEqual(
-    roadsignsLayoutOut,
-    spriteRoadsignsLayoutIn,
-    'Sprite layout is the same',
-  )
+  expect(spriteDefaultImageHashOut, 'Sprite image is the same').toBe(spriteDefaultImageHash)
+  expect(spriteRoadsignsImageHashOut, 'Sprite @2x image is the same').toBe(spriteRoadsignsImageHash)
+  expect(defaultLayoutOut, 'Sprite layout is the same').toEqual(spriteDefaultLayoutIn)
+  expect(roadsignsLayoutOut, 'Sprite layout is the same').toEqual(spriteRoadsignsLayoutIn)
 })
 
 test('Raster tiles write and read', async () => {
@@ -626,8 +556,8 @@ test('Raster tiles write and read', async () => {
   const pngTileHashOut = await readerHelper.getTileHash(pngTileId)
   const jpgTileHashOut = await readerHelper.getTileHash(jpgTileId)
 
-  assert.equal(pngTileHashOut, pngTileHash, 'PNG tile is the same')
-  assert.equal(jpgTileHashOut, jpgTileHash, 'JPG tile is the same')
+  expect(pngTileHashOut, 'PNG tile is the same').toBe(pngTileHash)
+  expect(jpgTileHashOut, 'JPG tile is the same').toBe(jpgTileHash)
 })
 
 test('Optimized central directory order', async () => {
@@ -710,10 +640,7 @@ test('Optimized central directory order', async () => {
     's/1/1/1/1.mvt.gz',
   ]
 
-  assert.deepStrictEqual(
-    entriesFilenames.slice(0, expectedFirstEntriesFilenames.length),
-    expectedFirstEntriesFilenames,
-  )
+  expect(entriesFilenames.slice(0, expectedFirstEntriesFilenames.length)).toStrictEqual(expectedFirstEntriesFilenames)
 })
 
 /**
@@ -742,7 +669,7 @@ async function compareAndSnapshotStyle({ styleInUrl, styleOut }) {
   } else {
     try {
       const expected = await readJson(snapshotUrl)
-      assert.deepEqual(styleOut, expected)
+      expect(styleOut).toEqual(expected)
     } catch (e) {
       if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
         await writeTextFile(snapshotUrl, JSON.stringify(styleOut, null, 2))

@@ -56,20 +56,13 @@ export default defineConfig({
                 new URL('./test/utils/stubs/node-stream.js', import.meta.url),
               ),
             },
-            // Stub node:assert/strict with browser-compatible implementation
-            {
-              find: 'node:assert/strict',
-              replacement: fileURLToPath(
-                new URL('./test/utils/stubs/node-assert-strict.js', import.meta.url),
-              ),
-            },
+
           ],
         },
         optimizeDeps: {
           // Prevent Vite from pre-bundling Node.js-only modules
           exclude: [
             'node:stream',
-            'node:assert/strict',
             'node:fs/promises',
             'sharp',
             'random-bytes-readable-stream',
