@@ -102,7 +102,7 @@
     "test": "npm run lint && npm run build && npm run types && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky && patch-package",
+    "prepare": "husky",
     "lint": "eslint .",
     "types": "tsc",
     "build": "tsup",
@@ -157,7 +157,6 @@
     "globals": "^16.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.4.3",
-    "patch-package": "^8.0.1",
     "pixel-stream": "^1.0.3",
     "playwright": "^1.50.1",
     "prettier": "^3.5.2",
@@ -167,10 +166,8 @@
     "tsup": "^8.4.0",
     "type-fest": "^4.35.0",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
     "vitest": "^3.2.4"
   },
-  "bundleDependencies": [],
   "prettier": {
     "semi": false,
     "singleQuote": true,
