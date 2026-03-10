@@ -10,6 +10,7 @@ export class ReaderHelper {
   #reader
   /** @type {Awaited<ReturnType<Reader['getStyle']>> | undefined} */
   #style
+  #crypto = globalThis.crypto
   /** @param {Reader} reader */
   constructor(reader) {
     this.#reader = reader
@@ -29,7 +30,11 @@ export class ReaderHelper {
       buf.set(chunk, off)
       off += chunk.byteLength
     }
-    const hashBuf = await crypto.subtle.digest('SHA-256', buf)
+    if (!this.#crypto) {
+      // @ts-ignore
+      this.#crypto = (await import('crypto')).webcrypto
+    }
+    const hashBuf = await this.#crypto.subtle.digest('SHA-256', buf)
     return Array.from(new Uint8Array(hashBuf))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('')

@@ -1,13 +1,9 @@
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
+import { fileURLToPath } from 'node:url'
+
 /** Files that are helpers/utilities, not test suites */
-const nonTestFiles = [
-  'test/commands.js',
-  'test/server.js',
-  'test/utils/**/*.js',
-  'test/download-write-read.js',
-]
+const nonTestFiles = ['test/utils/**/*.js']
 
 export default defineConfig({
   test: {
@@ -37,8 +33,9 @@ export default defineConfig({
             provider: 'playwright',
             instances: [{ browser: 'chromium' }],
             commands: {
-              readdir: (await import('./test/commands.js')).readdir,
-              randomImage: (await import('./test/commands.js')).randomImage,
+              readdir: (await import('./test/utils/commands.js')).readdir,
+              randomImage: (await import('./test/utils/commands.js'))
+                .randomImage,
             },
           },
         },
@@ -47,7 +44,9 @@ export default defineConfig({
             // Swap Node.js file I/O helpers with browser-compatible versions
             {
               find: './utils/io.js',
-              replacement: fileURLToPath(new URL('./test/utils/io.browser.js', import.meta.url)),
+              replacement: fileURLToPath(
+                new URL('./test/utils/io.browser.js', import.meta.url),
+              ),
             },
           ],
         },

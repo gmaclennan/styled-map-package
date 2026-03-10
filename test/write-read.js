@@ -30,9 +30,15 @@ const updateSnapshots =
  * @returns {ReadableStream<Uint8Array>}
  */
 function randomWebStream({ size }) {
+  /** @type {any} */
+  let crypto = globalThis.crypto
   return new ReadableStream({
-    start(controller) {
+    async start(controller) {
       const bytes = new Uint8Array(size)
+      // For node 18 support
+      if (!crypto) {
+        crypto = (await import('crypto')).webcrypto
+      }
       crypto.getRandomValues(bytes)
       controller.enqueue(bytes)
       controller.close()
@@ -46,6 +52,12 @@ function randomWebStream({ size }) {
  * @returns {Promise<string>}
  */
 async function sha256hex(data) {
+  /** @type {any} */
+  let crypto = globalThis.crypto
+  // For node 18 support
+  if (!crypto) {
+    crypto = (await import('crypto')).webcrypto
+  }
   // @ts-ignore - Uint8Array is a valid BufferSource despite TS type mismatch with ArrayBufferLike
   const buf = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(buf))

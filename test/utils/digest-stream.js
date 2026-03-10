@@ -15,7 +15,15 @@ export class DigestStream {
     this.#digestPromise = new Promise((r) => {
       resolve = r
     })
+    let crypto = globalThis.crypto
     this.#transform = new TransformStream({
+      async start() {
+        // For node 18 support
+        if (!crypto) {
+          // @ts-ignore
+          crypto = (await import('crypto')).webcrypto
+        }
+      },
       /**
        * @param {Uint8Array} chunk
        * @param {TransformStreamDefaultController} controller
