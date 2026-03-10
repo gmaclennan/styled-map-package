@@ -1,4 +1,3 @@
-import randomStream from 'random-bytes-readable-stream'
 import { temporaryWrite } from 'tempy'
 import { test } from 'vitest'
 import { ZipWriter } from 'zip-writer'
@@ -84,7 +83,7 @@ test('Reader.getVersion() returns version from SMP created by Writer', async () 
   }
   const writer = new Writer(style)
   const smpBufPromise = streamToBuffer(writer.outputStream)
-  await writer.addTile(randomStream({ size: 1024 }), {
+  await writer.addTile(new ReadableStream({ start(c) { c.enqueue(new Uint8Array(1024)); c.close() } }), {
     x: 0,
     y: 0,
     z: 0,

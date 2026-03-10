@@ -49,23 +49,13 @@ export default defineConfig({
               find: './utils/io.js',
               replacement: fileURLToPath(new URL('./test/utils/io.browser.js', import.meta.url)),
             },
-            // Stub node:stream so lib/writer.js can be bundled for the browser
-            {
-              find: 'node:stream',
-              replacement: fileURLToPath(
-                new URL('./test/utils/stubs/node-stream.js', import.meta.url),
-              ),
-            },
-
           ],
         },
         optimizeDeps: {
           // Prevent Vite from pre-bundling Node.js-only modules
           exclude: [
-            'node:stream',
             'node:fs/promises',
             'sharp',
-            'random-bytes-readable-stream',
             '@gmaclennan/zip-reader/file-source',
           ],
         },
