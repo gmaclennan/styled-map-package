@@ -62,6 +62,7 @@ export default defineConfig({
             'sharp',
             '@gmaclennan/zip-reader/file-source',
           ],
+          include: ['@placemarkio/check-geojson'],
         },
       },
     ],
