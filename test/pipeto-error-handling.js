@@ -30,16 +30,14 @@ function createBytesStream(bytes) {
 /** @param {ReadableStream} stream */
 async function drainStream(stream) {
   try {
-    for await (const _ of stream) {
-      /* consume */
-    }
+    await stream.pipeTo(new WritableStream())
   } catch {
     /* ignore */
   }
 }
 
 // Covers exactly 1 tile at z=0, 4 at z=1, etc.
-const FULL_BOUNDS = /** @type {const} */ ([-180, -90, 180, 90])
+const FULL_BOUNDS = /** @type {import('../lib/utils/geo.js').BBox} */ ([-180, -90, 180, 90])
 
 // --- tile-downloader ---
 
@@ -117,7 +115,7 @@ test('tile-downloader: mid-stream errors do not prevent other tiles being yielde
 
 // Minimal valid MapLibre GL style with an inline vector source and a symbol
 // layer that uses text-font, so getGlyphs() has work to do.
-const STYLE_WITH_GLYPHS = {
+const STYLE_WITH_GLYPHS = /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */ ({
   version: 8,
   glyphs: 'http://example.com/{fontstack}/{range}.pbf',
   sources: {
@@ -138,7 +136,7 @@ const STYLE_WITH_GLYPHS = {
       },
     },
   ],
-}
+})
 
 afterEach(() => {
   vi.restoreAllMocks()

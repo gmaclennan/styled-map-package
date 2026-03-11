@@ -39,10 +39,10 @@ export default async function setup({ provide }) {
   })
 
   const server = http.createServer(adapter)
-  await new Promise((resolve, reject) => {
-    server.listen(0, '127.0.0.1', resolve)
+  await /** @type {Promise<void>} */ (new Promise((resolve, reject) => {
+    server.listen(0, '127.0.0.1', () => resolve())
     server.on('error', reject)
-  })
+  }))
 
   const address = /** @type {import('node:net').AddressInfo} */ (
     server.address()
