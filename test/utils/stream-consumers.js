@@ -10,8 +10,11 @@
  */
 export async function streamToBuffer(stream) {
   const chunks = []
-  for await (const chunk of stream) {
-    chunks.push(chunk)
+  const reader = stream.getReader()
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    chunks.push(value)
   }
   const totalLength = chunks.reduce((sum, c) => sum + c.byteLength, 0)
   const result = new Uint8Array(totalLength)

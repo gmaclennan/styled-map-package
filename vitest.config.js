@@ -27,11 +27,16 @@ export default defineConfig({
       {
         test: {
           name: 'browser',
-          include: ['test/write-read.js', 'test/pipeto-error-handling.js', 'test/download-write-read.js'],
+          include: [
+            'test/write-read.js',
+            'test/pipeto-error-handling.js',
+            'test/download-write-read.js',
+          ],
           browser: {
             enabled: true,
             headless: true,
             provider: 'playwright',
+            screenshotFailures: false,
             instances: [
               { browser: 'chromium' },
               { browser: 'firefox' },

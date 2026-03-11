@@ -20,8 +20,11 @@ export class ReaderHelper {
   async #digest(path) {
     const resource = await this.#reader.getResource(path)
     const chunks = /** @type {Uint8Array[]} */ ([])
-    for await (const chunk of resource.stream) {
-      chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk))
+    const reader = resource.stream.getReader()
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      chunks.push(value instanceof Uint8Array ? value : new Uint8Array(value))
     }
     const totalLen = chunks.reduce((s, c) => s + c.byteLength, 0)
     const buf = new Uint8Array(totalLen)

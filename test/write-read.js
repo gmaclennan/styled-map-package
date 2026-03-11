@@ -695,8 +695,8 @@ test('Optimized central directory order', async () => {
   const expectedFirstEntriesFilenames = [
     'VERSION',
     'style.json',
-    'fonts/font2/0-255.pbf.gz',
     'fonts/font1/0-255.pbf.gz',
+    'fonts/font2/0-255.pbf.gz',
     's/0/0/0/0.mvt.gz',
     's/1/0/0/0.mvt.gz',
     's/0/1/0/0.mvt.gz',
