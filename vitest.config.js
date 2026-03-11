@@ -26,12 +26,16 @@ export default defineConfig({
       {
         test: {
           name: 'browser',
-          include: ['test/write-read.js'],
+          include: ['test/write-read.js', 'test/pipeto-error-handling.js'],
           browser: {
             enabled: true,
             headless: true,
             provider: 'playwright',
-            instances: [{ browser: 'chromium' }],
+            instances: [
+              { browser: 'chromium' },
+              { browser: 'firefox' },
+              { browser: 'webkit' },
+            ],
             commands: {
               readdir: (await import('./test/utils/commands.js')).readdir,
               randomImage: (await import('./test/utils/commands.js'))
