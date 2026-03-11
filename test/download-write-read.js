@@ -1,21 +1,21 @@
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec'
-import { test } from 'vitest'
+import { assert, inject, test } from 'vitest'
 import { ZipReader } from '@gmaclennan/zip-reader'
 import { BufferSource } from '@gmaclennan/zip-reader/buffer-source'
 
-import assert from 'node:assert'
-
-import { download, Reader } from '../lib/index.js'
+import { download } from '../lib/download.js'
+import { Reader } from '../lib/reader.js'
 import { streamToBuffer } from './utils/stream-consumers.js'
 
-const TEST_MAP_STYLE = 'https://demotiles.maplibre.org/style.json'
-const TEST_MAP_AREA = /** @type {const} */ ([5.956, 45.818, 10.492, 47.808]) // Switzerland
+// World bounds in Web Mercator (matches what the tile downloader clips to)
+const TEST_MAP_AREA = /** @type {const} */ ([-180, -85.051129, 180, 85.051129])
 
-test('Everything written can be read', async () => {
+test('Everything written can be read', { timeout: 30_000 }, async () => {
+  const smpServerUrl = inject('smpServerUrl')
   const smpReadStream = download({
-    styleUrl: TEST_MAP_STYLE,
+    styleUrl: `${smpServerUrl}/style.json`,
     bbox: [...TEST_MAP_AREA],
-    maxzoom: 5,
+    maxzoom: 2,
   })
   const smpBuf = await streamToBuffer(smpReadStream)
   const zip = await ZipReader.from(new BufferSource(smpBuf))

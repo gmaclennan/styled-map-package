@@ -7,6 +7,7 @@ const nonTestFiles = ['test/utils/**/*.js']
 
 export default defineConfig({
   test: {
+    globalSetup: ['test/utils/global-setup.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
@@ -26,7 +27,7 @@ export default defineConfig({
       {
         test: {
           name: 'browser',
-          include: ['test/write-read.js', 'test/pipeto-error-handling.js'],
+          include: ['test/write-read.js', 'test/pipeto-error-handling.js', 'test/download-write-read.js'],
           browser: {
             enabled: true,
             headless: true,
