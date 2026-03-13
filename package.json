@@ -1,15 +1,22 @@
 {
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "test": "npm run lint && npm test --workspaces",
     "lint": "eslint .",
     "build": "npm run build --workspaces --if-present",
     "types": "npm run types --workspaces --if-present",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run build --workspaces --if-present && changeset publish",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.6.0",
+    "@changesets/cli": "^2.30.0",
     "@eslint/js": "^9.25.1",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "eslint": "^9.25.1",
