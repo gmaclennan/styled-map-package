@@ -26,7 +26,12 @@ jobs:
         run: npm ci
 
       - name: Check for changesets
-        run: npx changeset status --since=origin/main
+        run: |
+          if [ -f .changeset/pre.json ]; then
+            echo "Skipping changeset check in pre-release mode"
+            exit 0
+          fi
+          npx changeset status --since=origin/main
 
   test:
     strategy:
