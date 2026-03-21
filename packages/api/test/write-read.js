@@ -1107,6 +1107,78 @@ test('Image source write and read', async () => {
   expect(imageHashOut, 'Image data is the same').toBe(imageHash)
 })
 
+test('Un-added image source is excluded from output', async () => {
+  /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
+  const styleIn = {
+    version: 8,
+    sources: {
+      maplibre: {
+        url: 'https://demotiles.maplibre.org/tiles/tiles.json',
+        type: 'vector',
+      },
+      overlay: {
+        type: 'image',
+        url: 'https://example.com/overlay.png',
+        coordinates: [
+          [-80, 40],
+          [-70, 40],
+          [-70, 30],
+          [-80, 30],
+        ],
+      },
+    },
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': '#D8F2FF' },
+      },
+      {
+        id: 'coastline',
+        type: 'line',
+        source: 'maplibre',
+        'source-layer': 'countries',
+      },
+      {
+        id: 'overlay-layer',
+        type: 'raster',
+        source: 'overlay',
+      },
+    ],
+  }
+
+  const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
+
+  // Add a tile for the vector source but do NOT call addImageSource
+  await writer.addTile(randomWebStream({ size: 1024 }), {
+    x: 0,
+    y: 0,
+    z: 0,
+    sourceId: 'maplibre',
+    format: 'mvt',
+  })
+
+  writer.finish()
+
+  const smp = await smpPromise
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
+  const styleOut = await reader.getStyle()
+
+  expect(
+    'overlay' in styleOut.sources,
+    'un-added image source is excluded',
+  ).toBe(false)
+  expect(
+    styleOut.layers.find((l) => 'source' in l && l.source === 'overlay'),
+    'layers referencing un-added image source are excluded',
+  ).toBeUndefined()
+  expect(
+    'maplibre' in styleOut.sources,
+    'other sources are still present',
+  ).toBe(true)
+})
+
 test('addImageSource throws for non-existent source', async () => {
   /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
   const styleIn = {

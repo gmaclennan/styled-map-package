@@ -524,6 +524,10 @@ export class Writer {
         // Skip empty GeoJSON sources
         continue
       }
+      if (source.type === 'image' && !imageFormat) {
+        // Skip image sources whose image data was not added
+        continue
+      }
       this.#style.sources[sourceId] = source
       if (source.type === 'image' && imageFormat) {
         // Rewrite image source URL to smp:// URI
