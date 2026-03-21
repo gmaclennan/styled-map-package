@@ -1117,7 +1117,7 @@ describe('validate — unsupported source types (§5.1)', () => {
     assert(!hasWarning(result, 'unsupported_source_type'))
   })
 
-  test('image source → unsupported_source_type warning', async () => {
+  test('image source is supported (no unsupported_source_type warning)', async () => {
     const filepath = await createZipFile([
       { name: 'VERSION', data: '1.0\n' },
       {
@@ -1128,6 +1128,33 @@ describe('validate — unsupported source types (§5.1)', () => {
             overlay: {
               type: 'image',
               url: 'https://example.com/image.png',
+              coordinates: [
+                [-80, 40],
+                [-70, 40],
+                [-70, 30],
+                [-80, 30],
+              ],
+            },
+          },
+          layers: [],
+        }),
+      },
+    ])
+    const result = await validate(filepath)
+    assert(!hasWarning(result, 'unsupported_source_type'))
+  })
+
+  test('video source → unsupported_source_type warning', async () => {
+    const filepath = await createZipFile([
+      { name: 'VERSION', data: '1.0\n' },
+      {
+        name: 'style.json',
+        data: JSON.stringify({
+          version: 8,
+          sources: {
+            clip: {
+              type: 'video',
+              urls: ['https://example.com/video.mp4'],
               coordinates: [
                 [-80, 40],
                 [-70, 40],

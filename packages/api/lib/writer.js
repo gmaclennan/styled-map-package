@@ -53,6 +53,7 @@ export const SUPPORTED_SOURCE_TYPES = /** @type {const} */ ([
   'vector',
   'raster-dem',
   'geojson',
+  'image',
 ])
 
 /**
@@ -123,10 +124,14 @@ export class Writer {
     this.#dedupe = dedupe
 
     for (const [sourceId, source] of Object.entries(this.#style.sources)) {
-      if (source.type !== 'geojson') continue
-      // Eagerly add GeoJSON sources - if they reference data via a URL and data
-      // is not added, these sources will be excluded from the resulting SMP
-      this.#addSource(sourceId, source)
+      if (source.type === 'geojson') {
+        // Eagerly add GeoJSON sources - if they reference data via a URL and data
+        // is not added, these sources will be excluded from the resulting SMP
+        this.#addSource(sourceId, source)
+      } else if (source.type === 'image') {
+        // Image sources are passed through as-is (no tiles to add)
+        this.#addSource(sourceId, source)
+      }
     }
 
     const zipReader = this.#zipWriter.readable.getReader()
@@ -233,6 +238,7 @@ export class Writer {
     switch (source.type) {
       case 'raster':
       case 'vector':
+      case 'raster-dem':
         smpSource = {
           ...excludeKeys(source, ['tiles', 'url', 'scheme']),
           scheme: 'xyz',
@@ -254,6 +260,9 @@ export class Writer {
                   bbox: [0, 0, 0, 0],
                 },
         }
+        break
+      case 'image':
+        smpSource = /** @type {SMPSource} */ (source)
         break
     }
     const sourceInfo = {

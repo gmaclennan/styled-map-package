@@ -413,6 +413,11 @@ function validateSources(style, entries, error, warn) {
       continue
     }
 
+    // Image sources are passed through as-is (no tile validation needed)
+    if (src.type === 'image') {
+      continue
+    }
+
     // §5.1: Unsupported source types
     if (
       src.type !== 'vector' &&

@@ -6,6 +6,7 @@ import type {
   VectorSourceSpecification,
   RasterSourceSpecification,
   RasterDEMSourceSpecification,
+  ImageSourceSpecification,
 } from '@maplibre/maplibre-gl-style-spec'
 import type { GeoJSON, BBox } from 'geojson'
 import type { Except, SetRequired, Simplify } from 'type-fest'
