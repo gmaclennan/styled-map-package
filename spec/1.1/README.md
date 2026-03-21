@@ -4,6 +4,10 @@
 
 Draft
 
+## Changes from v1.0
+
+- **Added `raster-dem` source type** ([Section 5.1](#51-supported-source-types)): Raster Digital Elevation Model tiles are now a supported tile source type, enabling offline terrain and hillshade rendering.
+
 ## Abstract
 
 A Styled Map Package (SMP) is a ZIP archive containing all the resources needed to render a styled map offline using [MapLibre GL](https://maplibre.org/maplibre-style-spec/). This includes the style document, vector and/or raster tiles, glyphs (fonts), and sprite images.
