@@ -1117,7 +1117,7 @@ describe('validate — unsupported source types (§5.1)', () => {
     assert(!hasWarning(result, 'unsupported_source_type'))
   })
 
-  test('image source is supported (no unsupported_source_type warning)', async () => {
+  test('image source with smp:// url is supported (no warnings)', async () => {
     const filepath = await createZipFile([
       { name: 'VERSION', data: '1.0\n' },
       {
@@ -1127,7 +1127,36 @@ describe('validate — unsupported source types (§5.1)', () => {
           sources: {
             overlay: {
               type: 'image',
-              url: 'https://example.com/image.png',
+              url: 'smp://maps.v1/images/0.png',
+              coordinates: [
+                [-80, 40],
+                [-70, 40],
+                [-70, 30],
+                [-80, 30],
+              ],
+            },
+          },
+          layers: [],
+        }),
+      },
+      { name: 'images/0.png', data: 'fake-image' },
+    ])
+    const result = await validate(filepath)
+    assert(!hasWarning(result, 'unsupported_source_type'))
+    assert(!hasError(result, 'missing_image_data'))
+  })
+
+  test('image source with missing image file → missing_image_data error', async () => {
+    const filepath = await createZipFile([
+      { name: 'VERSION', data: '1.0\n' },
+      {
+        name: 'style.json',
+        data: JSON.stringify({
+          version: 8,
+          sources: {
+            overlay: {
+              type: 'image',
+              url: 'smp://maps.v1/images/0.png',
               coordinates: [
                 [-80, 40],
                 [-70, 40],
@@ -1141,7 +1170,7 @@ describe('validate — unsupported source types (§5.1)', () => {
       },
     ])
     const result = await validate(filepath)
-    assert(!hasWarning(result, 'unsupported_source_type'))
+    assert(hasError(result, 'missing_image_data'))
   })
 
   test('video source → unsupported_source_type warning', async () => {

@@ -68,6 +68,18 @@ export class ReaderHelper {
     return this.#digest(glyphPath)
   }
 
+  /**
+   * @param {{ sourceId: string }} opts
+   */
+  async getImageSourceHash({ sourceId }) {
+    const style = this.#style || (this.#style = await this.#reader.getStyle(''))
+    const source = style.sources[sourceId]
+    if (!source || source.type !== 'image' || !('url' in source)) {
+      throw new Error(`Image source not found: ${sourceId}`)
+    }
+    return this.#digest(source.url)
+  }
+
   /** @param {{ id?: string, pixelRatio?: 1 | 2 | 3, ext: 'json' | 'png'}} opts */
   async getSpriteHash({ id, pixelRatio = 1, ext }) {
     const style = this.#style || (this.#style = await this.#reader.getStyle(''))

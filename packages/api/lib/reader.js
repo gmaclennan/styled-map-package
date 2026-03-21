@@ -274,6 +274,13 @@ export class Reader {
       ) {
         source.data = getUrl(source.data, baseUrl)
       }
+      if (
+        'url' in source &&
+        typeof source.url === 'string' &&
+        source.url.startsWith(URI_BASE)
+      ) {
+        source.url = getUrl(source.url, baseUrl)
+      }
     }
     // Hard to get this type-safe without a validation function. Instead we
     // trust the Writer and the tests for now.

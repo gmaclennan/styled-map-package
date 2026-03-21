@@ -92,6 +92,14 @@ export function download({
       }
       handleProgress({ sprites: { ...progress.sprites, done: true } })
 
+      for await (const {
+        body,
+        sourceId,
+        format,
+      } of downloader.getImageSources()) {
+        await writer.addImageSource(body, { sourceId, format })
+      }
+
       const tiles = downloader.getTiles({
         bounds: bbox,
         maxzoom,

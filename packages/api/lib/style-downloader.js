@@ -157,6 +157,23 @@ export class StyleDownloader {
   }
 
   /**
+   * Download image source files referenced in the style. Returns an async
+   * generator of image data streams with their source id and format.
+   *
+   * @returns {AsyncGenerator<{ body: ReadableStream<Uint8Array>, sourceId: string, format: import('./writer.js').ImageFormat }>}
+   */
+  async *getImageSources() {
+    const style = await this.getStyle()
+    for (const [sourceId, source] of Object.entries(style.sources)) {
+      if (source.type !== 'image') continue
+      const url = source.url
+      const format = getImageFormatFromUrl(url)
+      const { body } = await this.#fetchQueue.fetch(url)
+      yield { body, sourceId, format }
+    }
+  }
+
+  /**
    * Download the sprite PNGs and JSON files for this style. Returns an async
    * generator of json and png readable streams, and the sprite id and pixel
    * ratio. Downloads pixel ratios `1` and `2`.
@@ -350,6 +367,24 @@ export class StyleDownloader {
 
     return tiles
   }
+}
+
+/**
+ * Infer image format from a URL's file extension.
+ *
+ * @param {string} url
+ * @returns {import('./writer.js').ImageFormat}
+ */
+function getImageFormatFromUrl(url) {
+  try {
+    const { pathname } = new URL(url)
+    if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'jpg'
+    if (pathname.endsWith('.webp')) return 'webp'
+  } catch {
+    // fall through
+  }
+  // Default to png for unknown or missing extensions
+  return 'png'
 }
 
 /**

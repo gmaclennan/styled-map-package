@@ -413,8 +413,18 @@ function validateSources(style, entries, error, warn) {
       continue
     }
 
-    // Image sources are passed through as-is (no tile validation needed)
+    // Image sources: check image file exists in the archive
     if (src.type === 'image') {
+      if (typeof src.url === 'string' && src.url.startsWith(URI_BASE)) {
+        const imagePath = src.url.slice(URI_BASE.length)
+        if (!entries.has(imagePath)) {
+          error(
+            'missing_image_data',
+            `Image source "${sourceId}" references missing file: ${imagePath}`,
+            `${srcPath}.url`,
+          )
+        }
+      }
       continue
     }
 

@@ -8,6 +8,7 @@ export const STYLE_FILE = 'style.json'
 export const SOURCES_FOLDER = 's'
 const SPRITES_FOLDER = 'sprites'
 export const FONTS_FOLDER = 'fonts'
+const IMAGES_FOLDER = 'images'
 
 // This must include placeholders `{z}`, `{x}`, `{y}`, since these are used to
 // define the tile URL, and this is a TileJSON standard.
@@ -21,11 +22,14 @@ const SPRITE_FILE = SPRITES_FOLDER + '/{id}/sprite{pixelRatio}{ext}'
 // part of the MapLibre style spec.
 const GLYPH_FILE = FONTS_FOLDER + '/{fontstack}/{range}.pbf.gz'
 export const GLYPH_URI = URI_BASE + GLYPH_FILE
+// Image sources store a single image file per source.
+const IMAGE_FILE = IMAGES_FOLDER + '/{sourceId}{ext}'
 
 const pathToResouceType = /** @type {const} */ ({
   [TILE_FILE.split('/')[0] + '/']: 'tile',
   [SPRITE_FILE.split('/')[0] + '/']: 'sprite',
   [GLYPH_FILE.split('/')[0] + '/']: 'glyph',
+  [IMAGE_FILE.split('/')[0] + '/']: 'image',
 })
 
 /**
@@ -115,6 +119,24 @@ export function getTileUri({ sourceId, format }) {
   return (
     URI_BASE + TILE_FILE.replace('{sourceId}', sourceId).replace('{ext}', ext)
   )
+}
+
+/**
+ * Get the filename for an image source file in the archive.
+ *
+ * @param {{ sourceId: string, ext: string }} opts
+ */
+export function getImageFilename({ sourceId, ext }) {
+  return replaceVariables(IMAGE_FILE, { sourceId, ext })
+}
+
+/**
+ * Get the smp:// URI for an image source file.
+ *
+ * @param {{ sourceId: string, ext: string }} opts
+ */
+export function getImageUri({ sourceId, ext }) {
+  return URI_BASE + replaceVariables(IMAGE_FILE, { sourceId, ext })
 }
 
 /**

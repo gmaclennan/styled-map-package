@@ -1016,6 +1016,129 @@ test('Writer transforms step expression text-font to single fonts', async () => 
   ])
 })
 
+test('Image source write and read', async () => {
+  /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
+  const styleIn = {
+    version: 8,
+    sources: {
+      maplibre: {
+        url: 'https://demotiles.maplibre.org/tiles/tiles.json',
+        type: 'vector',
+      },
+      overlay: {
+        type: 'image',
+        url: 'https://example.com/overlay.png',
+        coordinates: [
+          [-80, 40],
+          [-70, 40],
+          [-70, 30],
+          [-80, 30],
+        ],
+      },
+    },
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': '#D8F2FF' },
+      },
+      {
+        id: 'coastline',
+        type: 'line',
+        source: 'maplibre',
+        'source-layer': 'countries',
+      },
+      {
+        id: 'overlay-layer',
+        type: 'raster',
+        source: 'overlay',
+      },
+    ],
+  }
+
+  const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
+
+  // Add a tile for the vector source
+  await writer.addTile(randomWebStream({ size: 1024 }), {
+    x: 0,
+    y: 0,
+    z: 0,
+    sourceId: 'maplibre',
+    format: 'mvt',
+  })
+
+  // Add the image source data
+  const imageData = await randomBytes(new Uint8Array(2048))
+  const imageHash = await sha256hex(imageData)
+  await writer.addImageSource(new Uint8Array(imageData), {
+    sourceId: 'overlay',
+    format: 'png',
+  })
+
+  writer.finish()
+
+  const smp = await smpPromise
+  const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
+  const readerHelper = new ReaderHelper(reader)
+
+  const styleOut = await reader.getStyle()
+  expect(styleOut.sources.overlay.type).toBe('image')
+  // @ts-ignore
+  expect(styleOut.sources.overlay.url).toMatch(/^smp:\/\//)
+  // @ts-ignore
+  expect(styleOut.sources.overlay.coordinates).toEqual([
+    [-80, 40],
+    [-70, 40],
+    [-70, 30],
+    [-80, 30],
+  ])
+
+  // Read the image back using a base URL and verify the hash
+  const styleWithBaseUrl = await reader.getStyle('http://localhost:3000/')
+  // @ts-ignore
+  expect(styleWithBaseUrl.sources.overlay.url).toMatch(
+    /^http:\/\/localhost:3000\//,
+  )
+
+  const imageHashOut = await readerHelper.getImageSourceHash({
+    sourceId: 'overlay',
+  })
+  expect(imageHashOut, 'Image data is the same').toBe(imageHash)
+})
+
+test('addImageSource throws for non-existent source', async () => {
+  /** @type {import('@maplibre/maplibre-gl-style-spec').StyleSpecification} */
+  const styleIn = {
+    version: 8,
+    sources: {
+      maplibre: {
+        url: 'https://demotiles.maplibre.org/tiles/tiles.json',
+        type: 'vector',
+      },
+    },
+    layers: [
+      {
+        id: 'background',
+        type: 'background',
+      },
+    ],
+  }
+
+  const writer = new Writer(styleIn)
+  const smpPromise = streamToBuffer(writer.outputStream)
+
+  await expect(() =>
+    writer.addImageSource(new Uint8Array(100), {
+      sourceId: 'nonexistent',
+      format: 'png',
+    }),
+  ).rejects.toThrow(/not found/)
+
+  writer.abort(new Error('cleanup'))
+  await smpPromise.catch(() => {})
+})
+
 /**
  *
  * @param {number} min

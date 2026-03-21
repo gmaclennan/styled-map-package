@@ -12,6 +12,8 @@ import {
   FONTS_FOLDER,
   FORMAT_VERSION,
   getGlyphFilename,
+  getImageFilename,
+  getImageUri,
   getSpriteFilename,
   getSpriteUri,
   getTileFilename,
@@ -25,11 +27,13 @@ import {
 /** @typedef {string | Uint8Array | ReadableStream } Source */
 /** @typedef {`${number}-${number}`} GlyphRange */
 /** @typedef {'png' | 'mvt' | 'jpg' | 'webp'} TileFormat */
+/** @typedef {'png' | 'jpg' | 'webp'} ImageFormat */
 /**
  * @typedef {object} SourceInfo
  * @property {import('./types.js').SMPSource} source
  * @property {string} encodedSourceId
  * @property {TileFormat} [format]
+ * @property {ImageFormat} [imageFormat]
  */
 /**
  * @typedef {object} TileInfo
@@ -183,6 +187,8 @@ export class Writer {
     let bounds
     let maxzoom = 0
     for (const { source } of this.#sources.values()) {
+      // Image sources don't have bounds/maxzoom tile metadata
+      if (source.type === 'image') continue
       if (source.type === 'geojson') {
         if (isEmptyFeatureCollection(source.data)) continue
         // GeoJSON source always increases the bounds of the map
@@ -208,6 +214,8 @@ export class Writer {
   #getMaxZoom() {
     let maxzoom = 0
     for (const { source } of this.#sources.values()) {
+      // Image sources don't participate in zoom level calculations
+      if (source.type === 'image') continue
       const sourceMaxzoom =
         // For GeoJSON sources, the maxzoom is 16 unless otherwise set
         source.type === 'geojson' ? source.maxzoom || 16 : source.maxzoom
@@ -388,6 +396,35 @@ export class Writer {
   }
 
   /**
+   * Add the image data for an image source. The image will be stored in the
+   * archive and the source URL will be rewritten to an `smp://` URI.
+   *
+   * @param {Source} imageData
+   * @param {{ sourceId: string, format: ImageFormat }} opts
+   * @returns {Promise<void>}
+   */
+  async addImageSource(imageData, { sourceId, format }) {
+    const sourceInfo = this.#sources.get(sourceId)
+    if (!sourceInfo) {
+      throw new Error(
+        `Source "${sourceId}" not found. The style must include an image source with this id.`,
+      )
+    }
+    if (sourceInfo.source.type !== 'image') {
+      throw new Error(
+        `Source "${sourceId}" is not an image source (type: ${sourceInfo.source.type})`,
+      )
+    }
+    sourceInfo.imageFormat = format
+    const ext = '.' + format
+    const name = getImageFilename({
+      sourceId: sourceInfo.encodedSourceId,
+      ext,
+    })
+    await this.#append(imageData, { name, store: true })
+  }
+
+  /**
    * Add glyphs to the styled map package
    *
    * @param {Source} glyphData
@@ -479,16 +516,25 @@ export class Writer {
     }
 
     this.#style.sources = {}
-    for (const [sourceId, { source, encodedSourceId, format = 'mvt' }] of this
-      .#sources) {
+    for (const [
+      sourceId,
+      { source, encodedSourceId, format = 'mvt', imageFormat },
+    ] of this.#sources) {
       if (source.type === 'geojson' && isEmptyFeatureCollection(source.data)) {
         // Skip empty GeoJSON sources
         continue
       }
       this.#style.sources[sourceId] = source
-      if (!('tiles' in source)) continue
-      // Add a tile URL (with custom schema) for each tile source
-      source.tiles = [getTileUri({ sourceId: encodedSourceId, format })]
+      if (source.type === 'image' && imageFormat) {
+        // Rewrite image source URL to smp:// URI
+        source.url = getImageUri({
+          sourceId: encodedSourceId,
+          ext: '.' + imageFormat,
+        })
+      } else if ('tiles' in source) {
+        // Add a tile URL (with custom schema) for each tile source
+        source.tiles = [getTileUri({ sourceId: encodedSourceId, format })]
+      }
     }
 
     this.#style.layers = this.#style.layers.filter(
@@ -506,7 +552,9 @@ export class Writer {
     metadata['smp:maxzoom'] = this.#getMaxZoom()
     /** @type {Record<string, string>} */
     metadata['smp:sourceFolders'] = {}
-    for (const [sourceId, { encodedSourceId }] of this.#sources) {
+    for (const [sourceId, { source, encodedSourceId }] of this.#sources) {
+      // Image sources don't use tile folders
+      if (source.type === 'image') continue
       metadata['smp:sourceFolders'][sourceId] =
         SOURCES_FOLDER + '/' + encodedSourceId
     }
