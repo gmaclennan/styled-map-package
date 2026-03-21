@@ -51,6 +51,7 @@ import {
 export const SUPPORTED_SOURCE_TYPES = /** @type {const} */ ([
   'raster',
   'vector',
+  'raster-dem',
   'geojson',
 ])
 
@@ -278,14 +279,22 @@ export class Writer {
       if (!source) {
         throw new Error(`Source not referenced in style.json: ${sourceId}`)
       }
-      if (source.type !== 'raster' && source.type !== 'vector') {
+      if (
+        source.type !== 'raster' &&
+        source.type !== 'vector' &&
+        source.type !== 'raster-dem'
+      ) {
         throw new Error(`Unsupported source type: ${source.type}`)
       }
       sourceInfo = this.#addSource(sourceId, source)
     }
     const { source, encodedSourceId } = sourceInfo
     // Mainly to keep Typescript happy...
-    if (source.type !== 'raster' && source.type !== 'vector') {
+    if (
+      source.type !== 'raster' &&
+      source.type !== 'vector' &&
+      source.type !== 'raster-dem'
+    ) {
       throw new Error(`Unsupported source type: ${source.type}`)
     }
 

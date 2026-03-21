@@ -414,7 +414,11 @@ function validateSources(style, entries, error, warn) {
     }
 
     // §5.1: Unsupported source types
-    if (src.type !== 'vector' && src.type !== 'raster') {
+    if (
+      src.type !== 'vector' &&
+      src.type !== 'raster' &&
+      src.type !== 'raster-dem'
+    ) {
       warn(
         'unsupported_source_type',
         `Source "${sourceId}" has unsupported type "${src.type}"`,

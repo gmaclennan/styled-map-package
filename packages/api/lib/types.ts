@@ -56,7 +56,10 @@ export type SMPStyle = TransformSMPStyle<StyleSpecification>
 export type TransformSMPInputSource<T extends SupportedInlinedSource> =
   T extends GeoJSONSourceSpecification
     ? T & { data: { bbox: BBox } }
-    : T extends RasterSourceSpecification | VectorSourceSpecification
+    : T extends
+          | RasterSourceSpecification
+          | VectorSourceSpecification
+          | RasterDEMSourceSpecification
       ? SetRequired<T, 'bounds' | 'minzoom' | 'maxzoom'>
       : T
 

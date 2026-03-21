@@ -106,7 +106,7 @@ test('Reader.getVersion() returns version from SMP created by Writer', async () 
   const zip = await ZipReader.from(new BufferSource(smpBuf))
   const reader = new Reader(zip)
   const version = await reader.getVersion()
-  assert.equal(version, '1.0')
+  assert.equal(version, '1.1')
   await reader.close()
 })
 

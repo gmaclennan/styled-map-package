@@ -1092,14 +1092,50 @@ describe('validate — GeoJSON data files (§8)', () => {
 })
 
 describe('validate — unsupported source types (§5.1)', () => {
-  test('raster-dem source → unsupported_source_type warning', async () => {
+  test('raster-dem source is supported (no unsupported_source_type warning)', async () => {
     const filepath = await createZipFile([
-      { name: 'VERSION', data: '1.0\n' },
+      { name: 'VERSION', data: '1.1\n' },
       {
         name: 'style.json',
         data: JSON.stringify({
           version: 8,
-          sources: { terrain: { type: 'raster-dem' } },
+          sources: {
+            terrain: {
+              type: 'raster-dem',
+              tiles: ['smp://maps.v1/s/terrain/{z}/{x}/{y}.png'],
+              bounds: [0, 0, 1, 1],
+              minzoom: 0,
+              maxzoom: 0,
+            },
+          },
+          layers: [],
+        }),
+      },
+      { name: 's/terrain/0/0/0.png', data: 'fake-tile' },
+    ])
+    const result = await validate(filepath)
+    assert(!hasWarning(result, 'unsupported_source_type'))
+  })
+
+  test('image source → unsupported_source_type warning', async () => {
+    const filepath = await createZipFile([
+      { name: 'VERSION', data: '1.1\n' },
+      {
+        name: 'style.json',
+        data: JSON.stringify({
+          version: 8,
+          sources: {
+            overlay: {
+              type: 'image',
+              url: 'https://example.com/image.png',
+              coordinates: [
+                [-80, 40],
+                [-70, 40],
+                [-70, 30],
+                [-80, 30],
+              ],
+            },
+          },
           layers: [],
         }),
       },
