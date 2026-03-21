@@ -125,6 +125,18 @@ test('parallel conversions from same buffer', { timeout: 30_000 }, async () => {
   mbtiles2.close()
 })
 
+test('fromMBTiles rejects invalid/corrupt buffer', async () => {
+  const invalidBuffer = new Uint8Array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+  const stream = fromMBTiles(invalidBuffer)
+  await expect(() => streamToBuffer(stream)).rejects.toThrow()
+})
+
+test('fromMBTiles rejects empty buffer', async () => {
+  const emptyBuffer = new Uint8Array(0)
+  const stream = fromMBTiles(emptyBuffer)
+  await expect(() => streamToBuffer(stream)).rejects.toThrow()
+})
+
 // Browser-specific tests are guarded behind a dynamic import-style check
 // to avoid referencing browser globals (navigator, Worker) in Node.
 if (!isNode) {

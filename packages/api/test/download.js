@@ -218,3 +218,123 @@ describe('download with osm-bright-z6 (sprites)', () => {
     )
   })
 })
+
+describe('download options', () => {
+  /** @type {{ baseUrl: string, close: () => Promise<void> }} */
+  let server
+
+  beforeAll(async () => {
+    const fixturePath = fileURLToPath(
+      new URL('./fixtures/demotiles-z2.smp', import.meta.url),
+    )
+    server = await startSMPServer(fixturePath)
+  })
+
+  afterAll(async () => {
+    if (server) await server.close()
+  })
+
+  test('download with dedupe produces a valid smaller SMP', async () => {
+    const smpStreamNormal = download({
+      styleUrl: server.baseUrl + 'style.json',
+      bbox: [-180, -85, 180, 85],
+      maxzoom: 2,
+    })
+    const smpStreamDedupe = download({
+      styleUrl: server.baseUrl + 'style.json',
+      bbox: [-180, -85, 180, 85],
+      maxzoom: 2,
+      dedupe: true,
+    })
+
+    const [smpNormal, smpDedupe] = await Promise.all([
+      streamToBuffer(smpStreamNormal),
+      streamToBuffer(smpStreamDedupe),
+    ])
+
+    // Both should be valid SMPs
+    const readerNormal = new Reader(
+      await ZipReader.from(new BufferSource(smpNormal)),
+    )
+    const readerDedupe = new Reader(
+      await ZipReader.from(new BufferSource(smpDedupe)),
+    )
+    const styleNormal = await readerNormal.getStyle()
+    const styleDedupe = await readerDedupe.getStyle()
+    assert.equal(styleNormal.version, 8)
+    assert.equal(styleDedupe.version, 8)
+
+    // Dedupe should be smaller or equal (ocean tiles are often identical)
+    assert(
+      smpDedupe.byteLength <= smpNormal.byteLength,
+      `dedupe (${smpDedupe.byteLength}) should be <= normal (${smpNormal.byteLength})`,
+    )
+
+    await readerNormal.close()
+    await readerDedupe.close()
+  })
+
+  test('download with skipLocalGlyphs produces valid SMP', async () => {
+    const smpStream = download({
+      styleUrl: server.baseUrl + 'style.json',
+      bbox: [-180, -85, 180, 85],
+      maxzoom: 0,
+      skipLocalGlyphs: true,
+    })
+
+    const smp = await streamToBuffer(smpStream)
+    assert(smp.length > 0, 'output is non-empty')
+
+    const reader = new Reader(await ZipReader.from(new BufferSource(smp)))
+    const style = await reader.getStyle()
+    assert.equal(style.version, 8)
+    assert(Object.keys(style.sources).length > 0, 'has sources')
+
+    await reader.close()
+  })
+
+  test('download progress reports all phases as done at completion', async () => {
+    /** @type {import('../lib/download.js').DownloadProgress[]} */
+    const progressUpdates = []
+    const smpStream = download({
+      styleUrl: server.baseUrl + 'style.json',
+      bbox: [0, 0, 1, 1],
+      maxzoom: 0,
+      onprogress: (p) => progressUpdates.push(structuredClone(p)),
+    })
+
+    await streamToBuffer(smpStream)
+
+    const last = progressUpdates[progressUpdates.length - 1]
+
+    // All phases should be marked done
+    assert.equal(last.style.done, true, 'style done')
+    assert.equal(last.tiles.done, true, 'tiles done')
+    assert.equal(last.glyphs.done, true, 'glyphs done')
+    assert.equal(last.sprites.done, true, 'sprites done')
+    assert.equal(last.output.done, true, 'output done')
+
+    // Tile stats should have correct shape
+    assert(typeof last.tiles.total === 'number', 'tiles.total is a number')
+    assert(
+      typeof last.tiles.downloaded === 'number',
+      'tiles.downloaded is a number',
+    )
+    assert(
+      typeof last.tiles.totalBytes === 'number',
+      'tiles.totalBytes is a number',
+    )
+    assert(typeof last.tiles.skipped === 'number', 'tiles.skipped is a number')
+
+    // Glyph stats should have correct shape
+    assert(typeof last.glyphs.total === 'number', 'glyphs.total is a number')
+    assert(
+      typeof last.glyphs.downloaded === 'number',
+      'glyphs.downloaded is a number',
+    )
+    assert(
+      typeof last.glyphs.totalBytes === 'number',
+      'glyphs.totalBytes is a number',
+    )
+  })
+})
