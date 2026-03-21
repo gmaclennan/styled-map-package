@@ -1094,7 +1094,7 @@ describe('validate — GeoJSON data files (§8)', () => {
 describe('validate — unsupported source types (§5.1)', () => {
   test('raster-dem source is supported (no unsupported_source_type warning)', async () => {
     const filepath = await createZipFile([
-      { name: 'VERSION', data: '1.1\n' },
+      { name: 'VERSION', data: '1.0\n' },
       {
         name: 'style.json',
         data: JSON.stringify({
@@ -1119,7 +1119,7 @@ describe('validate — unsupported source types (§5.1)', () => {
 
   test('image source → unsupported_source_type warning', async () => {
     const filepath = await createZipFile([
-      { name: 'VERSION', data: '1.1\n' },
+      { name: 'VERSION', data: '1.0\n' },
       {
         name: 'style.json',
         data: JSON.stringify({
