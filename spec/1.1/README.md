@@ -1,4 +1,4 @@
-# Styled Map Package (SMP) Format Specification v1.0
+# Styled Map Package (SMP) Format Specification v1.1
 
 ## Status
 
@@ -213,10 +213,11 @@ The following [MapLibre source types](https://maplibre.org/maplibre-style-spec/s
 
 - `vector` — [Mapbox Vector Tiles](https://github.com/mapbox/vector-tile-spec)
 - `raster` — Raster image tiles
+- `raster-dem` — Raster [Digital Elevation Model](https://en.wikipedia.org/wiki/Digital_elevation_model) tiles (used for terrain and hillshade rendering)
 
 Additionally, `geojson` sources are supported (see [Section 8](#8-geojson-sources)).
 
-Other source types (e.g., `raster-dem`, `image`, `video`) are not supported by this specification version. Support for `raster-dem` sources (terrain/hillshade) is planned for a future version.
+Other source types (e.g., `image`, `video`) are not supported by this specification version.
 
 ### 5.2 Tile File Paths
 
