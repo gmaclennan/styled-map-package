@@ -207,17 +207,9 @@ The standard [MapLibre Style Specification](https://maplibre.org/maplibre-style-
 
 ## 5. Tile Sources
 
-### 5.1 Supported Source Types
+### 5.1 Source Types
 
-The following [MapLibre source types](https://maplibre.org/maplibre-style-spec/sources/) are supported for tile data:
-
-- `vector` — [Mapbox Vector Tiles](https://github.com/mapbox/vector-tile-spec)
-- `raster` — Raster image tiles
-- `raster-dem` — Raster [Digital Elevation Model](https://en.wikipedia.org/wiki/Digital_elevation_model) tiles (used for terrain and hillshade rendering)
-
-Additionally, `geojson` sources are supported (see [Section 8](#8-geojson-sources)).
-
-Other source types (e.g., `image`, `video`) are not supported by this specification version.
+All [MapLibre source types](https://maplibre.org/maplibre-style-spec/sources/) are valid in an SMP file. Tile-based sources (`vector`, `raster`, `raster-dem`) MUST follow the requirements in this section. `geojson` sources have additional requirements defined in [Section 8](#8-geojson-sources). Other source types (e.g., `image`, `video`) are passed through as-is; it is up to the implementation to handle them as needed.
 
 ### 5.2 Tile File Paths
 
