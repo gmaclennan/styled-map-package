@@ -167,8 +167,8 @@ export class StyleDownloader {
     for (const [sourceId, source] of Object.entries(style.sources)) {
       if (source.type !== 'image') continue
       const url = source.url
-      const format = getImageFormatFromUrl(url)
-      const { body } = await this.#fetchQueue.fetch(url)
+      const { body, mimeType } = await this.#fetchQueue.fetch(url)
+      const format = getImageFormatFromResponse(mimeType, url)
       yield { body, sourceId, format }
     }
   }
@@ -369,21 +369,39 @@ export class StyleDownloader {
   }
 }
 
+/** @type {Record<string, import('./writer.js').ImageFormat>} */
+const MIME_TO_IMAGE_FORMAT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+}
+
+/** @type {Record<string, import('./writer.js').ImageFormat>} */
+const EXT_TO_IMAGE_FORMAT = {
+  '.png': 'png',
+  '.jpg': 'jpg',
+  '.jpeg': 'jpg',
+  '.webp': 'webp',
+}
+
 /**
- * Infer image format from a URL's file extension.
+ * Determine image format from the response Content-Type header, falling back to
+ * the URL file extension when the header is missing or unrecognised.
  *
+ * @param {string | null} mimeType
  * @param {string} url
  * @returns {import('./writer.js').ImageFormat}
  */
-function getImageFormatFromUrl(url) {
+function getImageFormatFromResponse(mimeType, url) {
+  if (mimeType && mimeType in MIME_TO_IMAGE_FORMAT) {
+    return MIME_TO_IMAGE_FORMAT[mimeType]
+  }
   try {
-    const { pathname } = new URL(url)
-    if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'jpg'
-    if (pathname.endsWith('.webp')) return 'webp'
+    const ext = new URL(url).pathname.match(/\.\w+$/)?.[0]
+    if (ext && ext in EXT_TO_IMAGE_FORMAT) return EXT_TO_IMAGE_FORMAT[ext]
   } catch {
     // fall through
   }
-  // Default to png for unknown or missing extensions
   return 'png'
 }
 
